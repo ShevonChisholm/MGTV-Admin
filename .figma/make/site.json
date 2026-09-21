@@ -1,0 +1,10 @@
+{
+  "description": "Manage associate profiles, track performance, and streamline administrative tasks with an intuitive portal designed for efficient team oversight.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
