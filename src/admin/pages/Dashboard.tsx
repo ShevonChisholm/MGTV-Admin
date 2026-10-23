@@ -1,3 +1,7 @@
+import { useOps } from "../store/ops/ops"
+import { useStore } from "../store/store"
+import { Link } from "../router"
+
 const stats = [
   {
     label: "Total Views",
@@ -26,8 +30,8 @@ const stats = [
   },
   {
     label: "Content Items",
-    value: "3,741",
-    change: "+2.3%",
+    value: "",
+    change: "",
     up: true,
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -37,9 +41,9 @@ const stats = [
     color: "#a855f7",
   },
   {
-    label: "Flagged Items",
-    value: "12",
-    change: "-33%",
+    label: "Open Reports",
+    value: "",
+    change: "",
     up: false,
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -71,6 +75,17 @@ const recentActivity = [
 ]
 
 export default function Dashboard() {
+  const { content } = useStore()
+  const { reports, campaigns, events } = useOps()
+  const openReports = reports.filter((r) => r.status === "open").length
+  const inReview = campaigns.filter((c) => c.status === "in_review").length
+  const upcoming = events.filter((e) => e.lifecycle === "scheduled" && new Date(e.start).getTime() > Date.now()).length
+  const live = (s: (typeof stats)[number]) =>
+    s.label === "Content Items"
+      ? { value: String(content.length), change: `${content.filter((c) => c.status === "published").length} published`, plain: true }
+      : s.label === "Open Reports"
+        ? { value: String(openReports), change: `${reports.length - openReports} resolved`, plain: true }
+        : { value: s.value, change: s.change, plain: false }
   const chartH = 140
   const chartW = 420
   const padL = 8
@@ -114,6 +129,12 @@ export default function Dashboard() {
         </select>
       </div>
 
+      <nav aria-label="Waiting for attention" style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, fontSize: 13 }}>
+        <Link to="/admin/moderation" className="btn btn-sm">{openReports} open report{openReports === 1 ? "" : "s"}</Link>
+        <Link to="/admin/advertising/campaigns" className="btn btn-sm">{inReview} campaign{inReview === 1 ? "" : "s"} awaiting review</Link>
+        <Link to="/admin/events" className="btn btn-sm">{upcoming} upcoming event{upcoming === 1 ? "" : "s"}</Link>
+      </nav>
+
       {/* Stat cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
         {stats.map((s) => (
@@ -133,10 +154,10 @@ export default function Dashboard() {
               <span style={{ color: s.color, opacity: 0.8 }}>{s.icon}</span>
             </div>
             <div style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-sans)", letterSpacing: "-0.02em", marginBottom: 6 }}>
-              {s.value}
+              {live(s).value}
             </div>
             <div style={{ fontSize: 12, color: s.up ? "var(--green)" : "var(--accent)", fontFamily: "var(--font-mono)" }}>
-              {s.change} <span style={{ color: "var(--text-muted)" }}>vs last period</span>
+              {live(s).change} <span style={{ color: "var(--text-muted)" }}>{live(s).plain ? "(from prototype data)" : "(sample)"}</span>
             </div>
           </div>
         ))}

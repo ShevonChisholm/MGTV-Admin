@@ -1,230 +1,199 @@
-import { useState } from "react"
+import React, { useRef, useState } from "react"
+import { PageActions } from "../components/PageHeader"
+import { useDirtyGuard } from "../router"
+import { useStore } from "../store/store"
+import { Badge, Card, EmptyState, MediaThumb, Modal } from "../ui"
+import { STATUS_META, TYPE_META, genId } from "../store/meta"
+import type { ContentItem, HomepageSection } from "../store/types"
+import { CustomerCard } from "./content/Preview"
 
-const sections = [
-  {
-    id: "hero",
-    label: "Homepage Hero",
-    type: "Banner",
-    item: "Blood & Chrome — Season 2",
-    status: "Live",
-    start: "Sep 1, 2026",
-    end: "Sep 22, 2026",
-    thumb: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=72&h=44&fit=crop&auto=format",
-  },
-  {
-    id: "feat-shows",
-    label: "Featured Shows",
-    type: "Carousel",
-    item: "6 shows selected",
-    status: "Live",
-    start: "Sep 1, 2026",
-    end: "Ongoing",
-    thumb: null,
-  },
-  {
-    id: "feat-movies",
-    label: "Featured Movies",
-    type: "Carousel",
-    item: "4 movies selected",
-    status: "Live",
-    start: "Sep 8, 2026",
-    end: "Ongoing",
-    thumb: null,
-  },
-  {
-    id: "feat-music",
-    label: "Featured Music",
-    type: "Spotlight",
-    item: "Kaya Monroe — Versailles",
-    status: "Live",
-    start: "Sep 5, 2026",
-    end: "Sep 19, 2026",
-    thumb: null,
-  },
-  {
-    id: "feat-sports",
-    label: "Featured Sports",
-    type: "Carousel",
-    item: "3 events selected",
-    status: "Live",
-    start: "Sep 9, 2026",
-    end: "Ongoing",
-    thumb: null,
-  },
-  {
-    id: "feat-news",
-    label: "Featured News",
-    type: "Grid",
-    item: "5 articles selected",
-    status: "Live",
-    start: "Sep 1, 2026",
-    end: "Ongoing",
-    thumb: null,
-  },
-  {
-    id: "feat-events",
-    label: "Featured Events",
-    type: "Carousel",
-    item: "TropicFest, Caribbean Cup",
-    status: "Live",
-    start: "Sep 6, 2026",
-    end: "Sep 20, 2026",
-    thumb: null,
-  },
-  {
-    id: "mgtv-plus",
-    label: "MGTV+ Featured",
-    type: "Banner",
-    item: "Sunfall — Exclusive Premiere",
-    status: "Scheduled",
-    start: "Sep 20, 2026",
-    end: "Oct 5, 2026",
-    thumb: "https://images.unsplash.com/photo-1512070679279-8988d32161be?w=72&h=44&fit=crop&auto=format",
-  },
-  {
-    id: "trending",
-    label: "Trending Content",
-    type: "Auto",
-    item: "Algorithm-driven (top 10)",
-    status: "Live",
-    start: "Continuous",
-    end: "Continuous",
-    thumb: null,
-  },
-  {
-    id: "lifestyle-feat",
-    label: "Featured Lifestyle & Culture",
-    type: "Spotlight",
-    item: "Island Fashion Week 2026",
-    status: "Live",
-    start: "Sep 10, 2026",
-    end: "Sep 17, 2026",
-    thumb: null,
-  },
-  {
-    id: "promo-banner",
-    label: "Promotional Banner",
-    type: "Banner",
-    item: "MGTV+ Free Trial — 30 days",
-    status: "Draft",
-    start: "—",
-    end: "—",
-    thumb: null,
-  },
-]
-
-const statusColors: Record<string, { c: string; bg: string }> = {
-  Live: { c: "#22c55e", bg: "#22c55e18" },
-  Scheduled: { c: "#3b82f6", bg: "#3b82f618" },
-  Draft: { c: "#8b8f9a", bg: "#8b8f9a18" },
-  Paused: { c: "#f59e0b", bg: "#f59e0b18" },
+function move<T>(arr: T[], i: number, d: number): T[] {
+  const j = i + d
+  if (j < 0 || j >= arr.length) return arr
+  const n = arr.slice()
+  ;[n[i], n[j]] = [n[j], n[i]]
+  return n
 }
 
-function StatusBadge({ s }: { s: string }) {
-  const c = statusColors[s] ?? { c: "#8b8f9a", bg: "#8b8f9a18" }
+function Picker({ section, onToggle, onClose }: { section: HomepageSection; onToggle: (id: string) => void; onClose: () => void }) {
+  const { content, assets } = useStore()
+  const [q, setQ] = useState("")
+  const list = content.filter((c) => c.title.toLowerCase().includes(q.toLowerCase()))
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 600, fontFamily: "var(--font-mono)", color: c.c, background: c.bg, padding: "2px 7px", borderRadius: 4 }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: c.c }} />{s}
-    </span>
+    <Modal title={`Choose content for "${section.label}"`} onClose={onClose} width={640} footer={<button className="btn btn-primary" onClick={onClose}>Done</button>}>
+      <label htmlFor="hp-q" style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Search content</label>
+      <input id="hp-q" className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Title" style={{ marginBottom: 12 }} />
+      <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--text-secondary)" }}>Only Published content is visible to customers. Other items can be selected but will appear as unavailable.</p>
+      {list.length === 0 ? (
+        <EmptyState title="No content found" body="Create content in the Content Library first." />
+      ) : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
+          {list.map((c) => {
+            const on = section.itemIds.includes(c.id)
+            const art = assets[c.landscapeId ?? ""] ?? assets[c.posterId ?? ""] ?? null
+            return (
+              <li key={c.id}>
+                <label style={{ display: "flex", gap: 12, alignItems: "center", padding: 8, border: `1px solid ${on ? "var(--accent)" : "var(--border-light)"}`, borderRadius: 8, background: on ? "var(--accent-dim)" : "var(--card)", cursor: "pointer" }}>
+                  <input type="checkbox" checked={on} onChange={() => onToggle(c.id)} />
+                  <div style={{ width: 56 }}><MediaThumb asset={art} crop="landscape" /></div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13.5 }}>{c.title || "Untitled"}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{TYPE_META[c.type].label}</div>
+                  </div>
+                  <Badge color={STATUS_META[c.status].color}>{STATUS_META[c.status].label}</Badge>
+                </label>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </Modal>
   )
 }
 
-const typeTag = (t: string) => (
-  <span style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "var(--text-muted)", background: "var(--border)", padding: "2px 6px", borderRadius: 3 }}>{t}</span>
-)
-
 export default function Homepage() {
-  const [sections_state, setSections] = useState(sections)
+  const { homepage, content, applyHomepage, toast } = useStore()
+  const [draft, setDraft] = useState<HomepageSection[]>(homepage)
+  const draftRef = useRef(draft)
+  draftRef.current = draft
+  const appliedRef = useRef(homepage)
+  appliedRef.current = homepage
+  const dirty = JSON.stringify(draft) !== JSON.stringify(homepage)
+  useDirtyGuard(() => JSON.stringify(draftRef.current) !== JSON.stringify(appliedRef.current))
+  const [picking, setPicking] = useState<string | null>(null)
+  const [focusId, setFocusId] = useState<string | null>(null)
 
-  const moveUp = (idx: number) => {
-    if (idx === 0) return
-    setSections((prev) => {
-      const next = [...prev]
-      ;[next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]
-      return next
-    })
+  const byId = (id: string): ContentItem | undefined => content.find((c) => c.id === id)
+  const patch = (id: string, p: Partial<HomepageSection>) => setDraft((d) => d.map((s) => (s.id === id ? { ...s, ...p } : s)))
+  const pickSection = draft.find((s) => s.id === picking)
+
+  const apply = () => {
+    const empty = draft.filter((s) => s.kind === "editorial" && s.itemIds.length === 0)
+    const blank = draft.filter((s) => !s.label.trim())
+    if (blank.length) return toast("error", "Every section needs a label before applying.")
+    applyHomepage(draft)
+    toast("success", `Homepage layout applied to the local prototype${empty.length ? ` (${empty.length} editorial section${empty.length === 1 ? " is" : "s are"} empty and will be hidden)` : ""}.`)
   }
 
-  const moveDown = (idx: number) => {
-    setSections((prev) => {
-      if (idx >= prev.length - 1) return prev
-      const next = [...prev]
-      ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
-      return next
-    })
+  const addSection = () => {
+    const id = genId("sec")
+    setDraft((d) => [...d, { id, label: "New editorial section", kind: "editorial", itemIds: [], layout: "rail" }])
+    setFocusId(id)
   }
 
   return (
-    <div style={{ padding: "28px", maxWidth: 1100 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <p style={{ color: "var(--text-muted)", fontSize: 13, fontFamily: "var(--font-sans)" }}>
-          Control what appears in every section of the customer homepage. Drag rows to reorder sections.
-        </p>
-        <button style={{ padding: "7px 16px", background: "var(--accent)", border: "none", borderRadius: 7, color: "white", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font-sans)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add Section
-        </button>
+    <div className="page-pad">
+      <PageActions>
+        {dirty && <span role="status" style={{ fontSize: 12.5, color: "var(--yellow)", fontWeight: 600 }}>Unapplied changes</span>}
+        <button className="btn" disabled={!dirty} onClick={() => setDraft(homepage)}>Discard changes</button>
+        <button className="btn btn-primary" disabled={!dirty} onClick={apply}>Apply to prototype</button>
+      </PageActions>
+
+      <p role="note" style={{ margin: "0 0 18px", fontSize: 13, color: "var(--text-secondary)", maxWidth: 720 }}>
+        Editorial sections are lists you choose by hand, shown in the order you set. Applying updates this local prototype only; it does not change the customer app.
+      </p>
+
+      <div className="editor-layout" style={{ alignItems: "start" }}>
+        <div>
+          <h2 style={{ fontSize: 16, margin: "0 0 12px", fontFamily: "var(--font-sans)" }}>Sections</h2>
+          {draft.length === 0 && <EmptyState title="The homepage has no sections" body="Add an editorial section and choose content for it." action={<button className="btn btn-primary" onClick={addSection}>Add editorial section</button>} />}
+          <div style={{ display: "grid", gap: 14 }}>
+            {draft.map((s, i) => (
+              <Card
+                key={s.id}
+                title={
+                  <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-muted)" }}>{i + 1}</span>
+                    {s.kind === "editorial" ? <Badge color="#C9A84C">Editorial selection</Badge> : <Badge color="#60a5fa">Data-driven collection (future, not connected)</Badge>}
+                  </span>
+                }
+                aside={
+                  <span style={{ display: "flex", gap: 6 }}>
+                    <button className="btn btn-sm" disabled={i === 0} aria-label={`Move ${s.label} up`} onClick={() => setDraft(move(draft, i, -1))}>Up</button>
+                    <button className="btn btn-sm" disabled={i === draft.length - 1} aria-label={`Move ${s.label} down`} onClick={() => setDraft(move(draft, i, 1))}>Down</button>
+                  </span>
+                }
+              >
+                <div style={{ display: "grid", gap: 12 }}>
+                  <div>
+                    <label htmlFor={`lbl-${s.id}`} style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Section label</label>
+                    <input id={`lbl-${s.id}`} className="input" value={s.label} autoFocus={focusId === s.id} onChange={(e) => patch(s.id, { label: e.target.value })} aria-invalid={!s.label.trim()} />
+                  </div>
+                  {s.kind === "collection" ? (
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                      Placeholder for a future data-driven collection. It has no content source in this prototype, so nothing is selected or shown here.
+                    </p>
+                  ) : s.itemIds.length === 0 ? (
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>No content selected yet. This section will be hidden until it has items.</p>
+                  ) : (
+                    <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
+                      {s.itemIds.map((cid, k) => {
+                        const c = byId(cid)
+                        return (
+                          <li key={cid} style={{ display: "flex", gap: 8, alignItems: "center", padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)" }}>
+                            <span style={{ flex: 1, fontSize: 13.5, minWidth: 0 }}>
+                              {c ? c.title : <em>Missing content ({cid})</em>}
+                              {c && <span style={{ color: "var(--text-muted)" }}> · {TYPE_META[c.type].label}</span>}
+                              {c && c.status !== "published" && <span style={{ color: "var(--yellow)" }}> · {STATUS_META[c.status].label}, hidden from customers</span>}
+                            </span>
+                            <button className="btn btn-sm" disabled={k === 0} aria-label={`Move ${c?.title ?? cid} earlier`} onClick={() => patch(s.id, { itemIds: move(s.itemIds, k, -1) })}>Up</button>
+                            <button className="btn btn-sm" disabled={k === s.itemIds.length - 1} aria-label={`Move ${c?.title ?? cid} later`} onClick={() => patch(s.id, { itemIds: move(s.itemIds, k, 1) })}>Down</button>
+                            <button className="btn btn-sm" aria-label={`Remove ${c?.title ?? cid} from ${s.label}`} onClick={() => patch(s.id, { itemIds: s.itemIds.filter((x) => x !== cid) })}>Remove from section</button>
+                          </li>
+                        )
+                      })}
+                    </ol>
+                  )}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {s.kind === "editorial" && <button className="btn btn-sm" onClick={() => setPicking(s.id)}>Choose content</button>}
+                    <button className="btn btn-sm btn-danger" onClick={() => setDraft(draft.filter((x) => x.id !== s.id))}>Remove section from homepage</button>
+                  </div>
+                  <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Removing only changes the homepage layout. Content stays in the Content Library.</span>
+                </div>
+              </Card>
+            ))}
+          </div>
+          {draft.length > 0 && <button className="btn" style={{ marginTop: 14 }} onClick={addSection}>Add editorial section</button>}
+        </div>
+
+        <div>
+          <h2 style={{ fontSize: 16, margin: "0 0 4px", fontFamily: "var(--font-sans)" }}>Customer layout preview</h2>
+          <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--text-secondary)" }}>Reflects your unapplied edits. Prototype only.</p>
+          <div style={{ background: "#0b0c0e", border: "1px solid var(--border-light)", borderRadius: 10, padding: 16, display: "grid", gap: 22 }}>
+            {draft.map((s) => {
+              const items = s.itemIds.map(byId).filter((c): c is ContentItem => !!c)
+              if (s.kind === "collection") {
+                return (
+                  <section key={s.id} aria-label={s.label}>
+                    <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>{s.label}</h3>
+                    <div style={{ border: "1px dashed var(--border-light)", borderRadius: 8, padding: 14, fontSize: 12.5, color: "var(--text-secondary)" }}>Future data-driven collection. Not connected, so no items are shown.</div>
+                  </section>
+                )
+              }
+              if (items.length === 0) return null
+              return (
+                <section key={s.id} aria-label={s.label}>
+                  <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>{s.label || "Untitled section"}</h3>
+                  <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
+                    {items.map((c) => (
+                      <CustomerCard key={c.id} item={c} crop={s.layout === "hero" ? "landscape" : undefined} width={s.layout === "hero" ? 300 : 150} unavailable={c.status !== "published"} />
+                    ))}
+                  </div>
+                </section>
+              )
+            })}
+            {draft.every((s) => s.kind === "collection" || s.itemIds.length === 0) && <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>Nothing to show yet. Choose content for a section.</div>}
+          </div>
+        </div>
       </div>
 
-      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid var(--border)" }}>
-              <th style={{ padding: "10px 14px", width: 36 }} />
-              <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Section</th>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Type</th>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Current Content</th>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Start</th>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase" }}>End</th>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Status</th>
-              <th style={{ padding: "10px 14px" }} />
-            </tr>
-          </thead>
-          <tbody>
-            {sections_state.map((row, i) => (
-              <tr
-                key={row.id}
-                style={{ borderBottom: i < sections_state.length - 1 ? "1px solid var(--border)" : "none", transition: "background 0.1s" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--card-hover)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <td style={{ padding: "12px 14px" }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <button onClick={() => moveUp(i)} disabled={i === 0} style={{ background: "none", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--text-muted)" : "var(--text-secondary)", padding: 0, lineHeight: 1 }}>▲</button>
-                    <button onClick={() => moveDown(i)} disabled={i === sections_state.length - 1} style={{ background: "none", border: "none", cursor: i === sections_state.length - 1 ? "default" : "pointer", color: i === sections_state.length - 1 ? "var(--text-muted)" : "var(--text-secondary)", padding: 0, lineHeight: 1 }}>▼</button>
-                  </div>
-                </td>
-                <td style={{ padding: "12px 14px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    {row.thumb && <img src={row.thumb} alt="" style={{ width: 60, height: 38, borderRadius: 4, objectFit: "cover", flexShrink: 0 }} />}
-                    <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-sans)" }}>{row.label}</div>
-                      <div style={{ fontSize: 10.5, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: 2 }}>Position {i + 1}</div>
-                    </div>
-                  </div>
-                </td>
-                <td style={{ padding: "12px 14px" }}>{typeTag(row.type)}</td>
-                <td style={{ padding: "12px 14px", fontSize: 12.5, color: "var(--text-secondary)", fontFamily: "var(--font-sans)", maxWidth: 200 }}>
-                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.item}</div>
-                </td>
-                <td style={{ padding: "12px 14px", fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>{row.start}</td>
-                <td style={{ padding: "12px 14px", fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>{row.end}</td>
-                <td style={{ padding: "12px 14px" }}><StatusBadge s={row.status} /></td>
-                <td style={{ padding: "12px 14px" }}>
-                  <div style={{ display: "flex", gap: 5 }}>
-                    <button style={{ background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "3px 9px", color: "var(--text-secondary)", fontSize: 11.5, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Edit</button>
-                    {row.status === "Live" ? (
-                      <button style={{ background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "3px 9px", color: "#f59e0b", fontSize: 11.5, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Pause</button>
-                    ) : (
-                      <button style={{ background: "none", border: "1px solid #22c55e40", borderRadius: 4, padding: "3px 9px", color: "#22c55e", fontSize: 11.5, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Publish</button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {pickSection && (
+        <Picker
+          section={pickSection}
+          onClose={() => setPicking(null)}
+          onToggle={(id) => patch(pickSection.id, { itemIds: pickSection.itemIds.includes(id) ? pickSection.itemIds.filter((x) => x !== id) : [...pickSection.itemIds, id] })}
+        />
+      )}
     </div>
   )
 }

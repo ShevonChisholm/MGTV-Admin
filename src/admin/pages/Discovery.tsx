@@ -72,7 +72,7 @@ const Toggle = ({ on, onToggle }: { on: boolean; onToggle: () => void }) => (
   </button>
 )
 
-const TH = ({ children }: { children: React.ReactNode }) => <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase" }}>{children}</th>
+const TH = ({ children }: { children?: React.ReactNode }) => <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-sans)", letterSpacing: "0.06em", textTransform: "uppercase" }}>{children}</th>
 
 function TableWrapper({ children }: { children: React.ReactNode }) {
   return (

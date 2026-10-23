@@ -1,84 +1,57 @@
-export default function TopBar({ page: _page }: { page: string }) {
+import { useStore } from "../store/store"
+import { useOps } from "../store/ops/ops"
+import { ROLES } from "../store/ops/types"
+import type { Role } from "../store/ops/types"
+
+export default function TopBar({ onMenu }: { onMenu: () => void }) {
+  const { resetDemo, toast } = useStore()
+  const { resetOps, actingRole, setActingRole } = useOps()
   return (
     <header
       style={{
-        height: 52,
-        borderBottom: "1px solid var(--border)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "flex-end",
-        padding: "0 20px",
-        background: "var(--sidebar)",
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
-        flexShrink: 0,
-        gap: 10,
+        minHeight: 52, borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center",
+        justifyContent: "space-between", padding: "6px 20px", background: "var(--sidebar)",
+        position: "sticky", top: 0, zIndex: 10, flexShrink: 0, gap: 10,
       }}
     >
-      {/* Search */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          background: "var(--card)",
-          border: "1px solid var(--border)",
-          borderRadius: 7,
-          padding: "5px 12px",
-          width: 200,
-        }}
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round">
-          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-        <input
-          placeholder="Search platform..."
-          style={{
-            background: "none",
-            border: "none",
-            outline: "none",
-            fontSize: 12.5,
-            color: "var(--text-primary)",
-            fontFamily: "var(--font-body)",
-            width: "100%",
-          }}
-        />
-      </div>
-
-      {/* Notifications */}
-      <button
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 7,
-          border: "1px solid var(--border)",
-          background: "var(--card)",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--text-secondary)",
-          position: "relative",
-        }}
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-        <span
-          style={{
-            position: "absolute",
-            top: 7,
-            right: 7,
-            width: 6,
-            height: 6,
-            background: "var(--accent)",
-            borderRadius: "50%",
-            border: "1.5px solid var(--sidebar)",
-          }}
-        />
+      <button className="btn menu-toggle" onClick={onMenu} aria-label="Open navigation menu">
+        Menu
       </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-secondary)" }}>
+        <span style={{ padding: "3px 9px", borderRadius: 999, border: "1px solid var(--border-light)", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+          Local prototype · data saved in this browser only
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)" }} title="Demonstrates denied-access states with provisional example roles">
+          Viewing as
+          <select className="input" style={{ minHeight: 30, padding: "3px 8px", width: "auto", fontSize: 12.5 }} value={actingRole} onChange={(e) => { setActingRole(e.target.value as Role); toast("info", `Now viewing as ${e.target.value} (provisional example role).`) }}>
+            {ROLES.map((r) => <option key={r}>{r}</option>)}
+          </select>
+        </label>
+        <button
+          className="btn btn-sm"
+          onClick={() => {
+            resetDemo()
+            resetOps()
+            toast("info", "Demo data reset to the original seed content.")
+          }}
+        >
+          Reset demo data
+        </button>
+        <div
+          className="topbar-search"
+          title="Global search is unavailable in this prototype"
+          style={{ display: "flex", alignItems: "center", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 7, padding: "0 12px", width: 190, minHeight: 32 }}
+        >
+          <input
+            disabled
+            aria-label="Search platform (unavailable in this prototype)"
+            placeholder="Search unavailable"
+            style={{ background: "none", border: "none", outline: "none", fontSize: 12.5, color: "var(--text-muted)", width: "100%" }}
+          />
+        </div>
+      </div>
     </header>
   )
 }
