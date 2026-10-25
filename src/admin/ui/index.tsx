@@ -22,9 +22,9 @@ export function Badge({ color, children, title }: { color: string; children: Rea
 /* ---------- Cards ---------- */
 export function Card({ title, aside, children, id }: { title?: React.ReactNode; aside?: React.ReactNode; children: React.ReactNode; id?: string }) {
   return (
-    <section id={id} style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, marginBottom: 16 }}>
+    <section className="ui-card" id={id} style={{ minWidth:0, maxWidth:"100%", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, marginBottom: 16 }}>
       {title && (
-        <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "13px 18px", borderBottom: "1px solid var(--border)" }}>
+        <header style={{ display: "flex", flexWrap:"wrap", minWidth:0, alignItems: "center", justifyContent: "space-between", gap: 10, padding: "13px 18px", borderBottom: "1px solid var(--border)" }}>
           <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, fontFamily: "var(--font-sans)", color: "var(--text-primary)" }}>{title}</h2>
           {aside}
         </header>
@@ -169,6 +169,7 @@ export function Modal({ title, onClose, children, footer, side, width = 560, lab
     >
       <div
         ref={box}
+        className="ui-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy ?? titleId}
@@ -179,10 +180,10 @@ export function Modal({ title, onClose, children, footer, side, width = 560, lab
         }}
       >
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: "1px solid var(--border)", gap: 10 }}>
-          <h2 id={titleId} style={{ margin: 0, fontSize: 16, fontFamily: "var(--font-sans)", fontWeight: 700 }}>{title}</h2>
+          <h2 id={titleId} style={{ minWidth:0,overflowWrap:"anywhere",margin: 0, fontSize: 16, fontFamily: "var(--font-sans)", fontWeight: 700 }}>{title}</h2>
           <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Close dialog">Close</button>
         </header>
-        <div style={{ padding: 18, overflowY: "auto", flex: 1 }}>{children}</div>
+        <div style={{ padding: 18, overflowY: "auto", flex: 1, minHeight:0,minWidth:0,maxWidth:"100%" }}>{children}</div>
         {footer && <footer style={{ padding: "12px 18px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>{footer}</footer>}
       </div>
     </div>

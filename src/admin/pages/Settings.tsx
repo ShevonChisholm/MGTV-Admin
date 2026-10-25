@@ -1,3 +1,5 @@
+import ConnectedSettings from "./ConnectedSettings";
+import {connected} from "../api/client";
 import React, { useState } from "react"
 import { useDirtyGuard } from "../router"
 import { PageActions } from "../components/PageHeader"
@@ -22,7 +24,7 @@ function Toggle({ label, hint, checked, onChange, disabled }: { label: string; h
   )
 }
 
-export default function Settings() {
+function PrototypeSettings() {
   const { settings, saveSettings, can } = useOps()
   const { toast } = useStore()
   const [draft, setDraft] = useState<S>(settings)
@@ -83,3 +85,5 @@ export default function Settings() {
     </div>
   )
 }
+
+export default function Settings(){return connected?<ConnectedSettings/>:<PrototypeSettings/>;}

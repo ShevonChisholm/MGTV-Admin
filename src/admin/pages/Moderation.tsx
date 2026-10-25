@@ -1,3 +1,5 @@
+import {connected} from "../api/client"
+import ConnectedModeration from "./ConnectedModeration"
 import React, { useState } from "react"
 import { Link, useRouter } from "../router"
 import { useOps } from "../store/ops/ops"
@@ -225,6 +227,10 @@ function ReportDetail({ id }: { id: string }) {
 }
 
 export default function Moderation() {
+ if(connected)return <ConnectedModeration/>;
+ return <PrototypeModeration/>;
+}
+function PrototypeModeration() {
   const { route } = useRouter()
   const { can } = useOps()
   void can

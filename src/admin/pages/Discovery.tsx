@@ -1,3 +1,4 @@
+import ConnectedDiscovery from "./ConnectedDiscovery";
 import React, { useState } from "react"
 
 const tabs = [
@@ -214,7 +215,8 @@ const tabContent: Record<string, React.ReactNode> = {
   regions: <RegionsTab />,
 }
 
-export default function Discovery() {
+export default function Discovery(){return import.meta.env.VITE_API_MODE==="connected"?<ConnectedDiscovery/>:<PrototypeDiscovery/>;}
+function PrototypeDiscovery() {
   const [active, setActive] = useState("categories")
   return (
     <div style={{ padding: "28px" }}>

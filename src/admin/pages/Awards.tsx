@@ -1,3 +1,5 @@
+import {connected} from "../api/client"
+import ConnectedAwards from "./ConnectedAwards"
 import React, { useRef, useState } from "react"
 import { Link, useDirtyGuard, useRouter } from "../router"
 import { PageActions } from "../components/PageHeader"
@@ -358,7 +360,8 @@ function Detail({ id, tab }: { id: string; tab: Tab }) {
   )
 }
 
-export default function Awards() {
+export default function Awards() { return connected ? <ConnectedAwards/> : <PrototypeAwards/> }
+function PrototypeAwards() {
   const { route } = useRouter()
   const [id, tab] = route.parts
   if (!id) return <List />

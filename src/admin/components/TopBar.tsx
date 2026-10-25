@@ -2,10 +2,12 @@ import { useStore } from "../store/store"
 import { useOps } from "../store/ops/ops"
 import { ROLES } from "../store/ops/types"
 import type { Role } from "../store/ops/types"
+import { connected } from '../api/client'
 
-export default function TopBar({ onMenu }: { onMenu: () => void }) {
+export default function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean }) {
   const { resetDemo, toast } = useStore()
   const { resetOps, actingRole, setActingRole } = useOps()
+  if (connected) return <header style={{display:'flex',alignItems:'center',gap:12,minHeight:52,padding:'12px 20px',background:'var(--sidebar)',borderBottom:'1px solid var(--border)',flexWrap:'wrap'}}><button className="btn menu-toggle" onClick={onMenu} aria-label="Open navigation menu" aria-controls="admin-navigation" aria-expanded={menuOpen}>Menu</button><span style={{fontSize:12,color:'var(--text-secondary)'}}>MGTV Admin</span></header>
   return (
     <header
       style={{
@@ -14,7 +16,7 @@ export default function TopBar({ onMenu }: { onMenu: () => void }) {
         position: "sticky", top: 0, zIndex: 10, flexShrink: 0, gap: 10,
       }}
     >
-      <button className="btn menu-toggle" onClick={onMenu} aria-label="Open navigation menu">
+      <button className="btn menu-toggle" onClick={onMenu} aria-label="Open navigation menu" aria-controls="admin-navigation" aria-expanded={menuOpen}>
         Menu
       </button>
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-secondary)" }}>

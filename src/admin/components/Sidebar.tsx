@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react"
+import { api, connected } from "../api/client"
+import { useEffect, useRef, useState } from "react"
 import { Link } from "../router"
 import { useOps } from "../store/ops/ops"
 
@@ -13,6 +14,9 @@ const groups = [
     label: "Content",
     items: [
       { id: "content", label: "Content Library", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> },
+      { id: "lifestyle", label: "Lifestyle & Culture", badge: null, icon: <span aria-hidden>✦</span> },
+      { id: "news", label: "News & Articles", badge: null, icon: <span aria-hidden>▤</span> },
+      { id: "music-library", label: "Artists, Albums & Playlists", badge: null, icon: <span aria-hidden>♫</span> },
       { id: "media", label: "Media Library", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 2v20"/><path d="M3 6.5h4"/><path d="M3 12h4"/><path d="M3 17.5h4"/><path d="M17 8l-5 4 5 4V8z"/></svg> },
       { id: "homepage", label: "Homepage & Featured", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
       { id: "discovery", label: "Categories & Discovery", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> },
@@ -21,6 +25,7 @@ const groups = [
   {
     label: "Audience",
     items: [
+      {id:"communications",label:"Contact & Newsletter",badge:null,icon:<span aria-hidden>✉</span>},
       { id: "customers", label: "Customers", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
       { id: "notifications", label: "Notifications", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> },
       { id: "moderation", label: "Moderation", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> },
@@ -39,7 +44,11 @@ const groups = [
   {
     label: "Operations",
     items: [
+      {id:"commerce",label:"Shop & Commerce",badge:null,icon:<span aria-hidden>▣</span>},
       { id: "analytics", label: "Analytics & Reports", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg> },
+      {id:"careers",label:"Careers",badge:null,icon:<span aria-hidden>↗</span>},
+      {id:"onboarding",label:"Staff Onboarding",badge:null,icon:<span aria-hidden>↗</span>},
+      {id:"access",label:"Roles & Permissions",badge:null,icon:<span aria-hidden>◇</span>},
       { id: "users", label: "Admin Users", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
       { id: "settings", label: "Platform Settings", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
     ],
@@ -72,9 +81,12 @@ const chevron = (rot: number) => (
 )
 
 export default function Sidebar({ active, open, onClose }: SidebarProps) {
+  const drawerRef = useRef<HTMLElement>(null)
   const [prefs, setPrefs] = useState<NavPrefs>(loadPrefs)
   const { reports } = useOps()
-  const openReports = reports.filter((r) => r.status === "open").length
+  const [serverReports,setServerReports]=useState<number|null>(null);
+  useEffect(()=>{if(!connected)return;let active=true;const load=()=>{void api("/admin/moderation/summary").then(r=>{if(active)setServerReports(r.open);}).catch(()=>{if(active)setServerReports(null);});};load();window.addEventListener("mgtv-moderation",load);return()=>{active=false;window.removeEventListener("mgtv-moderation",load);};},[active]);
+  const openReports = connected?serverReports:reports.filter((r) => r.status === "open").length
   const { collapsed, groups: closed } = prefs
 
   useEffect(() => {
@@ -93,6 +105,36 @@ export default function Sidebar({ active, open, onClose }: SidebarProps) {
   const toggleRail = () => setPrefs((p) => ({ ...p, collapsed: !p.collapsed }))
 
   useEffect(() => {
+    if (!open) return
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const desktop = window.matchMedia("(min-width: 901px)")
+    if (desktop.matches) { onClose(); return }
+    const controls = () => Array.from(drawerRef.current?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ) ?? []).filter(el => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden")
+    ;(controls()[0] ?? drawerRef.current)?.focus()
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); onClose(); return }
+      if (event.key !== "Tab") return
+      const items = controls(), first = items[0], last = items.at(-1)
+      if (!first || !last) { event.preventDefault(); drawerRef.current?.focus(); return }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === drawerRef.current)) {
+        event.preventDefault(); last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first.focus()
+      }
+    }
+    const resize = () => { if (desktop.matches) onClose() }
+    document.addEventListener("keydown", keydown)
+    desktop.addEventListener("change", resize)
+    return () => {
+      document.removeEventListener("keydown", keydown)
+      desktop.removeEventListener("change", resize)
+      if (previous?.isConnected) previous.focus()
+    }
+  }, [open, onClose])
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "[" || e.metaKey || e.ctrlKey || e.altKey) return
       const t = e.target as HTMLElement
@@ -105,6 +147,11 @@ export default function Sidebar({ active, open, onClose }: SidebarProps) {
 
   return (
     <aside
+      id="admin-navigation"
+      ref={drawerRef}
+      role={open ? "dialog" : undefined}
+      aria-modal={open || undefined}
+      tabIndex={-1}
       aria-label="Primary"
       className={`app-sidebar${open ? " open" : ""}${collapsed ? " collapsed" : ""}`}
       style={{
@@ -129,6 +176,7 @@ export default function Sidebar({ active, open, onClose }: SidebarProps) {
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.04em" }}>MGTV</div>
           <div style={{ fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>Admin Portal</div>
         </div>
+        <button type="button" className="btn menu-toggle" onClick={onClose} aria-label="Close navigation menu">Close</button>
       </div>
       <div className="sidebar-collapse-btn" style={{ padding: "0 8px 10px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
         <button
@@ -167,7 +215,7 @@ export default function Sidebar({ active, open, onClose }: SidebarProps) {
             <div id={gid} className="sb-items" hidden={isClosed && !collapsed}>
             {group.items.map((item) => {
               const isActive = active === item.id
-              const badge = item.id === "moderation" ? openReports || null : item.badge
+              const badge = item.id === "moderation" ? openReports || null : connected ? null : item.badge
               return (
                 <Link
                   key={item.id}
@@ -211,10 +259,10 @@ export default function Sidebar({ active, open, onClose }: SidebarProps) {
 
       {/* Associate info */}
       <div className="sb-user" style={{ padding: "12px 14px", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
-        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #7A6430)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "var(--on-accent)", flexShrink: 0 }}>JR</div>
+        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #7A6430)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "var(--on-accent)", flexShrink: 0 }}>{import.meta.env.VITE_API_MODE === "connected" ? "MG" : "JR"}</div>
         <div className="sb-hide" style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Jordan Rivera</div>
-          <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Super Admin</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{import.meta.env.VITE_API_MODE === "connected" ? "MGTV workspace" : "Jordan Rivera"}</div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{import.meta.env.VITE_API_MODE === "connected" ? "Permissions verified by API" : "Super Admin"}</div>
         </div>
       </div>
     </aside>

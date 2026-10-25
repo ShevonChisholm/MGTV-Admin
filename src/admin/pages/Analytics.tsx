@@ -1,3 +1,5 @@
+import ConnectedAnalytics from "./ConnectedAnalytics";
+import {connected} from "../api/client";
 const dauData = [142, 158, 163, 171, 149, 138, 160, 175, 182, 191, 178, 186, 194, 201, 189, 197, 204, 218, 211, 225, 215, 220, 233, 228, 239, 245, 238, 242, 251, 248]
 const maxDau = Math.max(...dauData)
 
@@ -22,7 +24,7 @@ const devices = [
 const months = ["Apr", "May", "Jun", "Jul", "Aug", "Sep"]
 const retentionData = [71, 68, 74, 72, 76, 79]
 
-export default function Analytics() {
+function PrototypeAnalytics() {
   const dauW = 600
   const dauH = 120
   const pad = 8
@@ -170,3 +172,5 @@ export default function Analytics() {
     </div>
   )
 }
+
+export default function Analytics() {return connected?<ConnectedAnalytics />:<PrototypeAnalytics/>;}

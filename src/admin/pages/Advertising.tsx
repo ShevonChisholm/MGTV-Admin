@@ -1,3 +1,5 @@
+import {connected} from "../api/client";
+import ConnectedAdvertising from "./ConnectedAdvertising";
 import React, { useRef, useState } from "react"
 import { Link, useDirtyGuard, useRouter } from "../router"
 import { PageActions } from "../components/PageHeader"
@@ -439,7 +441,8 @@ function CampaignEditor({ id }: { id: string }) {
   )
 }
 
-export default function Advertising() {
+export default function Advertising() {return connected?<ConnectedAdvertising/>:<PrototypeAdvertising/>;}
+function PrototypeAdvertising() {
   const { route } = useRouter()
   const [a, b] = route.parts
   const tab: Tab = a === "advertisers" || a === "reporting" ? a : "campaigns"

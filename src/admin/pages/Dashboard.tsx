@@ -1,3 +1,6 @@
+import ConnectedAnalytics from "./ConnectedAnalytics";
+import {useEffect,useState} from "react";
+import {api,connected} from "../api/client";
 import { useOps } from "../store/ops/ops"
 import { useStore } from "../store/store"
 import { Link } from "../router"
@@ -74,17 +77,21 @@ const recentActivity = [
   { user: "System", action: "Scheduled maintenance", title: "CDN Region US-West", time: "2 hr ago" },
 ]
 
-export default function Dashboard() {
+function PrototypeDashboard() {
   const { content } = useStore()
   const { reports, campaigns, events } = useOps()
-  const openReports = reports.filter((r) => r.status === "open").length
-  const inReview = campaigns.filter((c) => c.status === "in_review").length
+  const [reportCounts,setReportCounts]=useState<any>(null);
+  useEffect(()=>{if(connected)void api("/admin/moderation/summary").then(setReportCounts).catch(()=>setReportCounts(null));},[]);
+  const openReports = connected?reportCounts?.open:reports.filter((r) => r.status === "open").length
+  const[serverReview,setServerReview]=useState<number|null>(null);
+  useEffect(()=>{if(!connected)return;void api("/admin/advertising/summary").then(r=>setServerReview(r.counts.find((s:any)=>s.status==="in_review")?.count??0)).catch(()=>setServerReview(null));},[]);
+  const inReview = connected?serverReview:campaigns.filter((c) => c.status === "in_review").length
   const upcoming = events.filter((e) => e.lifecycle === "scheduled" && new Date(e.start).getTime() > Date.now()).length
   const live = (s: (typeof stats)[number]) =>
     s.label === "Content Items"
       ? { value: String(content.length), change: `${content.filter((c) => c.status === "published").length} published`, plain: true }
       : s.label === "Open Reports"
-        ? { value: String(openReports), change: `${reports.length - openReports} resolved`, plain: true }
+        ? { value: connected&&!reportCounts?"—":String(openReports), change: connected?(reportCounts?`${reportCounts.resolved} resolved`:"Moderation access required"):`${reports.length - openReports} resolved`, plain: true }
         : { value: s.value, change: s.change, plain: false }
   const chartH = 140
   const chartW = 420
@@ -130,8 +137,8 @@ export default function Dashboard() {
       </div>
 
       <nav aria-label="Waiting for attention" style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, fontSize: 13 }}>
-        <Link to="/admin/moderation" className="btn btn-sm">{openReports} open report{openReports === 1 ? "" : "s"}</Link>
-        <Link to="/admin/advertising/campaigns" className="btn btn-sm">{inReview} campaign{inReview === 1 ? "" : "s"} awaiting review</Link>
+        <Link to="/admin/moderation" className="btn btn-sm">{connected&&!reportCounts?"Moderation access required":`${openReports} open report${openReports === 1 ? "" : "s"}`}</Link>
+        <Link to="/admin/advertising/campaigns" className="btn btn-sm">{inReview===null?"Campaign review access required":`${inReview} campaign${inReview===1?"":"s"} awaiting review`}</Link>
         <Link to="/admin/events" className="btn btn-sm">{upcoming} upcoming event{upcoming === 1 ? "" : "s"}</Link>
       </nav>
 
@@ -157,7 +164,7 @@ export default function Dashboard() {
               {live(s).value}
             </div>
             <div style={{ fontSize: 12, color: s.up ? "var(--green)" : "var(--accent)", fontFamily: "var(--font-mono)" }}>
-              {live(s).change} <span style={{ color: "var(--text-muted)" }}>{live(s).plain ? "(from prototype data)" : "(sample)"}</span>
+              {live(s).change} <span style={{ color: "var(--text-muted)" }}>{connected&&s.label==="Open Reports"?(reportCounts?"(from API)":""):live(s).plain ? "(from prototype data)" : "(sample)"}</span>
             </div>
           </div>
         ))}
@@ -217,7 +224,7 @@ export default function Dashboard() {
 
       {/* Recent activity */}
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, padding: "20px" }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-sans)", marginBottom: 16 }}>Recent Activity</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-sans)", marginBottom: 16 }}>Recent Activity (sample)</div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           {recentActivity.map((item, i) => (
             <div
@@ -262,3 +269,5 @@ export default function Dashboard() {
     </div>
   )
 }
+
+export default function Dashboard() {return connected?<ConnectedAnalytics dashboard/>:<PrototypeDashboard/>;}

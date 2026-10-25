@@ -1,3 +1,5 @@
+import ConnectedHomepage from "./ConnectedHomepage";
+import {connected} from "../api/client";
 import React, { useRef, useState } from "react"
 import { PageActions } from "../components/PageHeader"
 import { useDirtyGuard } from "../router"
@@ -51,7 +53,8 @@ function Picker({ section, onToggle, onClose }: { section: HomepageSection; onTo
   )
 }
 
-export default function Homepage() {
+export default function Homepage(){return connected?<ConnectedHomepage/>:<PrototypeHomepage/>;}
+function PrototypeHomepage() {
   const { homepage, content, applyHomepage, toast } = useStore()
   const [draft, setDraft] = useState<HomepageSection[]>(homepage)
   const draftRef = useRef(draft)

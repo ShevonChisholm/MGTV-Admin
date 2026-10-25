@@ -1,3 +1,5 @@
+import ConnectedEvents from "./ConnectedEvents";
+import { connected } from "../api/client";
 import React, { useRef, useState } from "react"
 import { Link, useDirtyGuard, useRouter } from "../router"
 import { PageActions } from "../components/PageHeader"
@@ -286,7 +288,8 @@ function Editor({ id }: { id: string }) {
   )
 }
 
-export default function Events() {
+export default function Events() { return connected ? <ConnectedEvents/> : <PrototypeEvents/>; }
+function PrototypeEvents() {
   const { route } = useRouter()
   const id = route.parts[0]
   return id ? <Editor key={id} id={id} /> : <List />

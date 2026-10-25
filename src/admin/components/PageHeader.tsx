@@ -43,7 +43,7 @@ export default function PageHeader({ breadcrumb, title, description, badge }: Pa
         </ol>
       </nav>
       <div className="header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ minWidth: 0, flex: "1 1 320px" }}>
+        <div className="page-header-copy" style={{ minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-sans)", letterSpacing: "-0.02em", margin: "0 0 6px" }}>{title}</h1>
             {badge}

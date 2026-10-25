@@ -1,3 +1,5 @@
+import {connected} from "../api/client"
+import ConnectedSponsors from "./ConnectedSponsors"
 import React, { useRef, useState } from "react"
 import { Link, useDirtyGuard, useRouter } from "../router"
 import { PageActions } from "../components/PageHeader"
@@ -261,7 +263,8 @@ function Detail({ id, tab }: { id: string; tab: Tab }) {
   )
 }
 
-export default function Sponsors() {
+export default function Sponsors() { return connected ? <ConnectedSponsors/> : <PrototypeSponsors/> }
+function PrototypeSponsors() {
   const { route } = useRouter()
   const [id, tab] = route.parts
   if (!id) return <List />

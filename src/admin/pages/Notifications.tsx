@@ -1,3 +1,5 @@
+import {connected} from "../api/client"
+import ConnectedNotifications from "./ConnectedNotifications"
 import React, { useRef, useState } from "react"
 import { Link, useDirtyGuard, useRouter } from "../router"
 import { PageActions } from "../components/PageHeader"
@@ -398,6 +400,10 @@ function ScheduleDialog({ onCancel, onConfirm }: { onCancel: () => void; onConfi
 }
 
 export default function Notifications() {
+  if (connected) return <ConnectedNotifications />;
+  return <PrototypeNotifications />
+}
+function PrototypeNotifications() {
   const { route } = useRouter()
   const [a, b] = route.parts
   if (a === "new") return <Composer key={"new" + (b ?? "")} id="new" tplId={b} />
