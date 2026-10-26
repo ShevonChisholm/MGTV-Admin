@@ -872,7 +872,7 @@ function SponsorView({ id }: { id?: string }) {
                 ))}
               </div>
               <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                Publishing needs explicit content.publish permission.
+                Publishing needs explicit sponsors.publish permission.
                 Deactivation hides public branding and retains records.
                 Reactivation requires a separate publish action to display it
                 again.
@@ -1037,7 +1037,7 @@ function SponsorView({ id }: { id?: string }) {
         >
           <p>
             {action === "publish"
-              ? "Customers will see the saved name, description, website and selected logo on linked published shows and events. Compact credits also accompany those featured items and the series’ episodes. These editorial credits remain visible to every tier, including Gold. Contacts and other brand assets stay private."
+              ? "Customers will see the saved name, description, website, selected logo and reviewed story image on linked published shows and events. Compact credits also accompany those featured items and the series’ episodes. These editorial credits remain visible to every tier, including Gold. Contacts and other brand assets stay private."
               : action === "activate"
                 ? "Reactivate this organization. Its public branding stays unpublished until a separate publication action."
                 : "This hides public branding while retaining contacts, assets, associations and history."}
