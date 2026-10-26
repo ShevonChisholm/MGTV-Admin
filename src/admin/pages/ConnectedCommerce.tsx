@@ -169,7 +169,9 @@ export default function ConnectedCommerce() {
                         {p.status}
                         {p.payment_hold && (
                           <span className="block text-amber-300 text-xs">
-                            Payment / refund review
+                            {p.status === "refunded"
+                              ? "Refund completed"
+                              : "Payment / refund review"}
                           </span>
                         )}
                         {p.ticketReviewRequired && (
@@ -187,7 +189,9 @@ export default function ConnectedCommerce() {
                         {p.status}
                         {p.payment_hold && (
                           <span className="block text-amber-300 text-xs">
-                            Payment / refund review
+                            {p.status === "refunded"
+                              ? "Refund completed"
+                              : "Payment / refund review"}
                           </span>
                         )}
                         {p.ticketReviewRequired && (
@@ -402,8 +406,9 @@ export default function ConnectedCommerce() {
                     )}
                     {selected.payment_hold && (
                       <p role="status" className="text-amber-300">
-                        Payment hold: fulfillment, downloads and admission are
-                        blocked.
+                        {selected.status === "refunded"
+                          ? "Refunded order: fulfillment, downloads and admission are unavailable."
+                          : "Payment hold: fulfillment, downloads and admission are blocked."}
                       </p>
                     )}
                     {selected.payment.provider === "stripe-sandbox" && (
@@ -434,7 +439,10 @@ export default function ConnectedCommerce() {
                             !reason.trim() ||
                             !can("commerce.refunds.manage") ||
                             selected.payment.state !== "succeeded" ||
-                            selected.payment.refundedMinor > 0
+                            selected.payment.refundedMinor > 0 ||
+                            ["pending", "requesting"].includes(
+                              selected.payment.refund?.state,
+                            )
                           }
                           onClick={() => {
                             if (
@@ -456,7 +464,9 @@ export default function ConnectedCommerce() {
                             });
                           }}
                         >
-                          Refund full order
+                          {selected.payment.refund?.state === "uncertain"
+                            ? "Retry refund request"
+                            : "Refund full order"}
                         </button>
                       </div>
                     )}
