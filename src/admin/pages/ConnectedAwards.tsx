@@ -1,3 +1,4 @@
+import AwardPresentation from "../components/AwardPresentation";
 import MediaAttachment from "../components/MediaAttachment";
 import LoadingState from "../components/LoadingState";
 import React, { useEffect, useRef, useState } from "react";
@@ -551,6 +552,7 @@ function AwardsView({ id }: { id?: string }) {
               )}
             </Card>
           )}
+          {record?.publishedRevisionId&&<AwardPresentation key={record.id+record.publishedRevisionId} id={record.id} disabled={busy||!!dirty} canRead={!!can("media.read")} canUpload={!!can("media.upload")} canPublish={!!can("awards.write")&&!!can("awards.publish")}/>}
           {record && (
             <Card title="Publication and voting controls">
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

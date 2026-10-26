@@ -224,6 +224,7 @@ export default function MediaAttachment({
   canUpload = false,
   onBusyChange,
   maxDuration,
+  selectionHint,
 }: {
   label: string;
   kind: "image" | "video" | "audio" | "any";
@@ -234,6 +235,7 @@ export default function MediaAttachment({
   canUpload?: boolean;
   onBusyChange?: (busy: boolean) => void;
   maxDuration?: number;
+  selectionHint?: string;
 }) {
   const [open, setOpen] = useState(false),
     [progress, setProgress] = useState(""),
@@ -346,8 +348,7 @@ export default function MediaAttachment({
           : "No file selected"}
       </p>
       <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-        Selection belongs to this draft only after you save. Replacing or
-        removing it does not delete the library file.
+        {selectionHint ?? "Selection belongs to this draft only after you save. Replacing or removing it does not delete the library file."}
       </p>
       <label style={{ fontSize: 13 }}>
         Upload {kind}
