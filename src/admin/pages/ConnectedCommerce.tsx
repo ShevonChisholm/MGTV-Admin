@@ -129,7 +129,7 @@ export default function ConnectedCommerce() {
       </div>
       <p className="text-sm text-muted mb-5">
         Jamaica · JMD · Development store. Test tax 15%; delivery J$750;
-        collection free. WiPay sandbox only; no real money moves.
+        collection free. Stripe sandbox checkout; no real money moves.
       </p>
       {error && (
         <p role="alert" className="mb-4 text-red-400">
@@ -165,13 +165,37 @@ export default function ConnectedCommerce() {
                     <>
                       <td>{p.name}</td>
                       <td>{p.kind}</td>
-                      <td>{p.status}{p.ticketReviewRequired&&<span className="block text-amber-300 text-xs">Event booking needs review</span>}</td>
+                      <td>
+                        {p.status}
+                        {p.payment_hold && (
+                          <span className="block text-amber-300 text-xs">
+                            Payment / refund review
+                          </span>
+                        )}
+                        {p.ticketReviewRequired && (
+                          <span className="block text-amber-300 text-xs">
+                            Event booking needs review
+                          </span>
+                        )}
+                      </td>
                       <td>{p.options.length}</td>
                     </>
                   ) : (
                     <>
                       <td style={{ overflowWrap: "anywhere" }}>{p.id}</td>
-                      <td>{p.status}{p.ticketReviewRequired&&<span className="block text-amber-300 text-xs">Event booking needs review</span>}</td>
+                      <td>
+                        {p.status}
+                        {p.payment_hold && (
+                          <span className="block text-amber-300 text-xs">
+                            Payment / refund review
+                          </span>
+                        )}
+                        {p.ticketReviewRequired && (
+                          <span className="block text-amber-300 text-xs">
+                            Event booking needs review
+                          </span>
+                        )}
+                      </td>
                       <td>{money(p.total_minor)}</td>
                       <td>{new Date(p.created_at).toLocaleDateString()}</td>
                     </>
@@ -330,8 +354,27 @@ export default function ConnectedCommerce() {
                 <p>
                   Status: {selected.effective_status} ·{" "}
                   {money(selected.total_minor)}
-                  {selected.admissions?.map((a:any)=><div key={a.optionId} className="my-3 rounded border border-white/10 p-3 text-sm"><strong>{a.title}</strong><p>{a.startsAt} · {a.timezone}</p>{a.needsReview&&<p role="alert" className="text-amber-300">{a.reason}</p>}<p>Admission codes stay private to the customer. Check-in is on the event editor.</p></div>)}
                 </p>
+                {selected.admissions?.map((a: any) => (
+                  <div
+                    key={a.optionId}
+                    className="my-3 rounded border border-white/10 p-3 text-sm"
+                  >
+                    <strong>{a.title}</strong>
+                    <p>
+                      {a.startsAt} · {a.timezone}
+                    </p>
+                    {a.needsReview && (
+                      <p role="alert" className="text-amber-300">
+                        {a.reason}
+                      </p>
+                    )}
+                    <p>
+                      Admission codes stay private to the customer. Check-in is
+                      on the event editor.
+                    </p>
+                  </div>
+                ))}
                 {selected.items.map((i: any) => (
                   <p key={i.option_id}>
                     {i.quantity} × {i.name} · {i.option_label}
@@ -343,6 +386,81 @@ export default function ConnectedCommerce() {
                     {selected.address.name} · {selected.address.line1},{" "}
                     {selected.address.parish} · {selected.address.phone}
                   </p>
+                )}
+                {selected.payment && (
+                  <div className="my-4 rounded-xl border border-white/10 p-4 text-sm space-y-2">
+                    <p>
+                      Payment: {selected.payment.provider} ·{" "}
+                      {selected.payment.state}
+                    </p>
+                    <p>{selected.payment.note}</p>
+                    {selected.payment.refund && (
+                      <p>
+                        Refund: {selected.payment.refund.state} ·{" "}
+                        {money(selected.payment.refund.amount_minor)}
+                      </p>
+                    )}
+                    {selected.payment_hold && (
+                      <p role="status" className="text-amber-300">
+                        Payment hold: fulfillment, downloads and admission are
+                        blocked.
+                      </p>
+                    )}
+                    {selected.payment.provider === "stripe-sandbox" && (
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          className="btn btn-secondary"
+                          disabled={busy || !can("commerce.orders.manage")}
+                          onClick={() =>
+                            void run(async () => {
+                              await api(
+                                "/admin/commerce/orders/" +
+                                  selected.id +
+                                  "/reconcile",
+                                "POST",
+                                {},
+                              );
+                              await detail(selected.id);
+                              await refresh();
+                            })
+                          }
+                        >
+                          Reconcile payment
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          disabled={
+                            busy ||
+                            !reason.trim() ||
+                            !can("commerce.refunds.manage") ||
+                            selected.payment.state !== "succeeded" ||
+                            selected.payment.refundedMinor > 0
+                          }
+                          onClick={() => {
+                            if (
+                              !confirm(
+                                "Refund the full sandbox order? Tickets and downloads will be blocked. Physical stock will not be restocked automatically.",
+                              )
+                            )
+                              return;
+                            void run(async () => {
+                              await api(
+                                "/admin/commerce/orders/" +
+                                  selected.id +
+                                  "/refunds",
+                                "POST",
+                                { reason },
+                              );
+                              await detail(selected.id);
+                              await refresh();
+                            });
+                          }}
+                        >
+                          Refund full order
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
                 <label className="block">
                   Action reason
@@ -366,7 +484,7 @@ export default function ConnectedCommerce() {
                       ) ||
                       (action === "cancel"
                         ? selected.effective_status !== "awaiting_payment"
-                        : selected.status !== "paid")
+                        : selected.status !== "paid" || selected.payment_hold)
                     }
                     onClick={() =>
                       void run(async () => {
@@ -481,8 +599,36 @@ export default function ConnectedCommerce() {
                 ))}
               </select>
             </label>
-            <MediaAttachment key={`${editing?.id??"new"}:image`} label="Product image" kind="image" value={form.imageVersionId||null} disabled={busy||!can("commerce.products.manage")} canRead={!!can("media.read")} canUpload={!!can("media.upload")} onBusyChange={setBusy} onChange={v=>{setForm(f=>({...f,imageVersionId:v??""}));dirty.current=true;}}/>
-            {form.kind==="digital"&&<MediaAttachment key={`${editing?.id??"new"}:digital`} label="Digital download" kind="any" value={form.digitalVersionId||null} disabled={busy||!can("commerce.products.manage")} canRead={!!can("media.read")} canUpload={!!can("media.upload")} onBusyChange={setBusy} onChange={v=>{setForm(f=>({...f,digitalVersionId:v??""}));dirty.current=true;}}/>}
+            <MediaAttachment
+              key={`${editing?.id ?? "new"}:image`}
+              label="Product image"
+              kind="image"
+              value={form.imageVersionId || null}
+              disabled={busy || !can("commerce.products.manage")}
+              canRead={!!can("media.read")}
+              canUpload={!!can("media.upload")}
+              onBusyChange={setBusy}
+              onChange={(v) => {
+                setForm((f) => ({ ...f, imageVersionId: v ?? "" }));
+                dirty.current = true;
+              }}
+            />
+            {form.kind === "digital" && (
+              <MediaAttachment
+                key={`${editing?.id ?? "new"}:digital`}
+                label="Digital download"
+                kind="any"
+                value={form.digitalVersionId || null}
+                disabled={busy || !can("commerce.products.manage")}
+                canRead={!!can("media.read")}
+                canUpload={!!can("media.upload")}
+                onBusyChange={setBusy}
+                onChange={(v) => {
+                  setForm((f) => ({ ...f, digitalVersionId: v ?? "" }));
+                  dirty.current = true;
+                }}
+              />
+            )}
             {error && <p role="alert">{error}</p>}
             <button className="btn btn-primary" type="submit" disabled={busy}>
               Save draft
