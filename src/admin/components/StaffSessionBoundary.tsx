@@ -1,3 +1,4 @@
+import BrandLogo from "../components/BrandLogo";
 import StaffWelcome from "../pages/StaffWelcome";
 import { StaffSessionVerified } from "../api/staff-session-context";
 import {
@@ -115,7 +116,7 @@ export default function StaffSessionBoundary({
             aria-busy={state === "checking"}
           >
             <div className="staff-brand">
-              MGTV<span>THE PEOPLE BEHIND THE STORIES</span>
+              <BrandLogo width={128} /><span>THE PEOPLE BEHIND THE STORIES</span>
             </div>
             <h1>
               {state === "checking"

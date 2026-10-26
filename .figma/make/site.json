@@ -1,10 +1,11 @@
 {
-  "description": "Manage associate profiles, track performance, and streamline administrative tasks with an intuitive portal designed for efficient team oversight.",
+  "description": "The MGTV staff workspace for managing content and platform operations.",
   "robots": {
     "index": false
   },
   "accessibility": {
     "addBypassLinks": false,
     "ignoreReducedMotion": false
-  }
+  },
+  "title": "MGTV Admin"
 }

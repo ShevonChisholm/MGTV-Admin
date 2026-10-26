@@ -1,3 +1,4 @@
+import BrandLogo from "../components/BrandLogo";
 import LoadingState from "../components/LoadingState";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
@@ -91,7 +92,7 @@ export default function StaffWelcome({
     <main className="staff-welcome-layout">
       <section className="staff-welcome">
         <div className="staff-brand">
-          MGTV<span>THE PEOPLE BEHIND THE STORIES</span>
+          <BrandLogo width={128} /><span>THE PEOPLE BEHIND THE STORIES</span>
         </div>
         <p className="people-eyebrow">Your MGTV workspace</p>
         <h1>

@@ -1,3 +1,4 @@
+import BrandLogo from "./BrandLogo";
 import { api, connected } from "../api/client"
 import { useEffect, useRef, useState } from "react"
 import { Link } from "../router"
@@ -169,11 +170,9 @@ export default function Sidebar({ active, open, onClose }: SidebarProps) {
     >
       {/* Logo */}
       <div className="sb-head" style={{ padding: "20px 16px 12px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-        <div style={{ width: 30, height: 30, background: "var(--accent)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="#14110a"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        </div>
+        <BrandLogo width={collapsed ? 32 : 80} />
         <div className="sb-hide" style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.04em" }}>MGTV</div>
+
           <div style={{ fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>Admin Portal</div>
         </div>
         <button type="button" className="btn menu-toggle" onClick={onClose} aria-label="Close navigation menu">Close</button>

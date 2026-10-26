@@ -1,3 +1,4 @@
+import BrandLogo from "../components/BrandLogo";
 import LoadingState, { ErrorState } from "../components/LoadingState";
 import { useStaffSessionVerified } from "../api/staff-session-context";
 import React, { useEffect, useRef, useState } from "react";
@@ -128,7 +129,7 @@ export default function StaffAuth({
   return (
     <section className="staff-auth">
       <div className="staff-brand">
-        MGTV<span>THE PEOPLE BEHIND THE STORIES</span>
+        <BrandLogo width={128} /><span>THE PEOPLE BEHIND THE STORIES</span>
       </div>
       {action === "sign-in" && (
         <ol className="staff-steps" aria-label="Staff sign-in progress">
