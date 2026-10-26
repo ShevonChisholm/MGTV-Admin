@@ -1,0 +1,23 @@
+.caption-manager,
+.caption-manager * {
+  box-sizing: border-box;
+  min-width: 0;
+}
+.caption-manager {
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+.caption-manager input:not([type="checkbox"]),
+.caption-manager textarea,
+.caption-manager select {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+.caption-manager input[type="file"] {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.caption-manager fieldset {
+  min-inline-size: 0;
+}

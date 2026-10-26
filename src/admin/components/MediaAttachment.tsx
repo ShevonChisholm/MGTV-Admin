@@ -1,3 +1,4 @@
+import CaptionManager from "./CaptionManager";
 import React, { useEffect, useRef, useState } from "react";
 import { api, upload } from "../api/client";
 import { useDirtyGuard } from "../router";
@@ -153,6 +154,7 @@ export function MediaLibraryList({
                 </button>
               )}
               {!onSelect && <MediaUsage id={item.id} />}
+              {!onSelect && item.kind === "video" && item.state === "ready" && <CaptionManager mediaId={item.id} />}
             </li>
           ))}
         </ul>
