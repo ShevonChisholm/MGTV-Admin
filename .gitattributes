@@ -144,3 +144,6 @@
 *.stl                filter=lfs diff=lfs merge=lfs -text
 *.nc                 filter=lfs diff=lfs merge=lfs -text
 *.mat                filter=lfs diff=lfs merge=lfs -text
+
+# Bundle the approved UI logo directly for frontend hosting.
+/public/brand/mgtv-logo-gold-v1.png -filter -diff -merge -text
