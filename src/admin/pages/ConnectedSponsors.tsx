@@ -23,6 +23,8 @@ const blank = {
   contacts: [] as any[],
   brandAssets: [] as any[],
   publicAssetId: null as string | null,
+  storyImageVersionId: null as string | null,
+  storyImageAlt: "",
   showIds: [] as string[],
   eventIds: [] as string[],
   rightsConfirmed: false,
@@ -461,15 +463,15 @@ function SponsorView({ id }: { id?: string }) {
                         }
                       />{" "}
                       Permission confirmed to display this organization’s
-                      branding
+                      branding and story artwork
                     </label>
                   </div>
                 </fieldset>
               </Card>
               <Note>
                 Contacts stay private. Only a published name, description,
-                website and selected public logo appear under “Supported by” on
-                published shows and events.
+                website, selected public logo and reviewed story image appear
+                under “Supported by” on published shows and events.
               </Note>
             </>
           )}
@@ -615,7 +617,58 @@ function SponsorView({ id }: { id?: string }) {
                       ))}
                     </select>
                   </label>
-                  <SponsorPreview draft={draft} record={record}/>
+                  <div className="mt-6 space-y-4">
+                    <h3 className="text-lg font-semibold">
+                      Sponsor story artwork
+                    </h3>
+                    <p className="text-sm text-muted">
+                      Optional editorial imagery sits beside the approved logo
+                      on full credits. Saving keeps it private; publish the
+                      reviewed sponsor revision to make it visible.
+                    </p>
+                    <MediaAttachment
+                      label="Sponsor story image"
+                      kind="image"
+                      value={draft.storyImageVersionId}
+                      disabled={busy || !can("sponsors.manage")}
+                      canRead={!!can("media.read")}
+                      canUpload={!!can("media.upload")}
+                      onBusyChange={setBusy}
+                      onChange={(value) =>
+                        change({
+                          storyImageVersionId: value,
+                          storyImageAlt: value ? draft.storyImageAlt : "",
+                          ...(value && value !== draft.storyImageVersionId
+                            ? { rightsConfirmed: false }
+                            : {}),
+                        })
+                      }
+                    />
+                    <TextField
+                      label="Public story image alternative text"
+                      value={draft.storyImageAlt}
+                      maxLength={500}
+                      disabled={busy || !can("sponsors.manage")}
+                      onChange={(e) =>
+                        change({ storyImageAlt: e.target.value })
+                      }
+                    />
+                  </div>
+                  {draft.storyImageVersionId && (
+                    <label className="mt-4 flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={draft.rightsConfirmed}
+                        disabled={busy || !can("sponsors.manage")}
+                        onChange={(e) =>
+                          change({ rightsConfirmed: e.target.checked })
+                        }
+                      />
+                      Permission confirmed for the selected public branding and
+                      story artwork
+                    </label>
+                  )}
+                  <SponsorPreview draft={draft} record={record} />
                 </>
               ) : (
                 <EmptyState
@@ -887,7 +940,19 @@ function SponsorView({ id }: { id?: string }) {
               ))}
             </select>
           </label>
-          <MediaAttachment key={asset.id} label="Brand image" kind="image" value={asset.mediaVersionId} disabled={busy} canRead={!!can("media.read")} canUpload={!!can("media.upload")} onBusyChange={setBusy} onChange={v=>setAsset((a:any)=>a?{...a,mediaVersionId:v}:a)}/>
+          <MediaAttachment
+            key={asset.id}
+            label="Brand image"
+            kind="image"
+            value={asset.mediaVersionId}
+            disabled={busy}
+            canRead={!!can("media.read")}
+            canUpload={!!can("media.upload")}
+            onBusyChange={setBusy}
+            onChange={(v) =>
+              setAsset((a: any) => (a ? { ...a, mediaVersionId: v } : a))
+            }
+          />
           {error && <p role="alert">{error}</p>}
         </Modal>
       )}

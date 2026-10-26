@@ -15,7 +15,12 @@ export default function SponsorPreview({
         (a: any) => a.mediaVersionId === selected.mediaVersionId,
       ),
     light = selected?.kind === "logo_light";
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState(false),
+    [storyFailed, setStoryFailed] = useState(false);
+  const storySaved =
+    draft.storyImageVersionId &&
+    record?.draft.storyImageVersionId === draft.storyImageVersionId;
+  useEffect(() => setStoryFailed(false), [draft.storyImageVersionId]);
   useEffect(() => setFailed(false), [selected?.mediaVersionId]);
   return (
     <section
@@ -29,9 +34,34 @@ export default function SponsorPreview({
         Saving a draft does not change the live credit. Publish separately after
         review. This preview uses private asset access.
       </p>
+      {draft.storyImageVersionId && (
+        <div className="mb-5 aspect-[16/10] max-h-80 overflow-hidden rounded-xl bg-white/5">
+          {storySaved && !storyFailed ? (
+            <img
+              src={
+                "/api/v1/admin/sponsors/" +
+                record.id +
+                "/assets/" +
+                draft.storyImageVersionId
+              }
+              alt={draft.storyImageAlt || "Sponsor story preview"}
+              width={1440}
+              height={900}
+              className="h-full w-full object-cover"
+              onError={() => setStoryFailed(true)}
+            />
+          ) : (
+            <p className="flex h-full items-center justify-center p-6 text-sm text-white/60">
+              {storyFailed
+                ? "Story image unavailable"
+                : "Save this draft to preview the story image"}
+            </p>
+          )}
+        </div>
+      )}
       <div className="flex min-w-0 flex-wrap gap-5">
         <div
-          className={`flex h-28 w-44 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 ${light ? "bg-[#f3efe5] text-[#29251c]" : "bg-[#181b1c] text-[#C9A84C]"}`}
+          className={`flex h-24 w-72 max-w-full shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 ${light ? "bg-[#f3efe5] text-[#29251c]" : "bg-[#181b1c] text-[#C9A84C]"}`}
         >
           {saved && !failed ? (
             <img
@@ -72,11 +102,11 @@ export default function SponsorPreview({
         </div>
       </div>
       <p className="mt-4 text-xs text-white/60">
-        Only the selected logo, name, description and website are public after
-        publication. Featured credits use the same logo and link to the related
-        show's or event's full credit. Series credits also appear below episode
-        playback. Gold keeps these editorial credits; advertising uses its own
-        rules.
+        Only the selected logo, reviewed story image, name, description and
+        website are public after publication. Featured credits use the same logo
+        and link to the related show's or event's full credit. Series credits
+        also appear below episode playback. Gold keeps these editorial credits;
+        advertising uses its own rules.
       </p>
     </section>
   );
