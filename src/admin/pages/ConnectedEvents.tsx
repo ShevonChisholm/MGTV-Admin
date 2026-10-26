@@ -1,4 +1,7 @@
-import OriginalsSettings, {type OriginFields} from "../components/OriginalsSettings";
+import EventArtworkPreview from "../components/EventArtworkPreview";
+import OriginalsSettings, {
+  type OriginFields,
+} from "../components/OriginalsSettings";
 import EventTicketing from "../components/EventTicketing";
 import LifecycleSettings from "../components/LifecycleSettings";
 import MediaAttachment from "../components/MediaAttachment";
@@ -603,10 +606,35 @@ function EventsView({ id }: { id?: string }) {
                     ["replayMediaVersionId", "Replay MP4", "video/mp4"],
                   ] as const
                 ).map(([key, label, accept]) => (
-                  <MediaAttachment key={`${id}:${key}`} label={label} kind={accept==="video/mp4"?"video":"image"} value={draft[key]} canRead={!!can("media.read")} canUpload={!!can("media.upload")} onBusyChange={setBusy} maxDuration={key==="featureMediaVersionId"?30:undefined} onChange={v=>set(key,v)}/>
+                  <MediaAttachment
+                    key={`${id}:${key}`}
+                    label={label}
+                    kind={accept === "video/mp4" ? "video" : "image"}
+                    value={draft[key]}
+                    canRead={!!can("media.read")}
+                    canUpload={!!can("media.upload")}
+                    onBusyChange={setBusy}
+                    maxDuration={
+                      key === "featureMediaVersionId" ? 30 : undefined
+                    }
+                    onChange={(v) => set(key, v)}
+                  />
                 ))}
-                <OriginalsSettings value={draft} onChange={patch=>{setDraft(d=>({...d,...patch}));}} versions={[draft.featureMediaVersionId,draft.previewMediaVersionId,draft.replayMediaVersionId]} canRead={!!can("media.read")} canReview={!!can("media.upload")&&!!can("content.publish")}/>
-<label>
+                <EventArtworkPreview record={record} draft={draft} />
+                <OriginalsSettings
+                  value={draft}
+                  onChange={(patch) => {
+                    setDraft((d) => ({ ...d, ...patch }));
+                  }}
+                  versions={[
+                    draft.featureMediaVersionId,
+                    draft.previewMediaVersionId,
+                    draft.replayMediaVersionId,
+                  ]}
+                  canRead={!!can("media.read")}
+                  canReview={!!can("media.upload") && !!can("content.publish")}
+                />
+                <label>
                   <input
                     type="checkbox"
                     checked={draft.rightsConfirmed}
@@ -621,8 +649,18 @@ function EventsView({ id }: { id?: string }) {
         <aside>
           {record && (
             <>
-              <LifecycleSettings key={`${record.id}:${record.publishedRevisionId}`} kind="event" id={record.id} revisionId={record.publishedRevisionId} canPublish={!!can("events.publish")}/>
-              <EventTicketing id={record.id} manage={!!can("ticketing.manage")} checkin={!!can("ticketing.checkin")} />
+              <LifecycleSettings
+                key={`${record.id}:${record.publishedRevisionId}`}
+                kind="event"
+                id={record.id}
+                revisionId={record.publishedRevisionId}
+                canPublish={!!can("events.publish")}
+              />
+              <EventTicketing
+                id={record.id}
+                manage={!!can("ticketing.manage")}
+                checkin={!!can("ticketing.checkin")}
+              />
               <LinkedSponsors kind="events" id={record.id} />
               <Card title="Publication">
                 <p>
