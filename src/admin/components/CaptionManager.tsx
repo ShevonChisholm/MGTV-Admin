@@ -15,7 +15,7 @@ type Track = {
   hasUnpublishedChanges: boolean;
   cueCount: number;
 };
-function ReviewVideo({ mediaId, text }: { mediaId: string; text: string }) {
+export function ReviewVideo({ mediaId, text }: { mediaId: string; text: string }) {
   const node = useRef<HTMLVideoElement>(null),
     [error, setError] = useState("");
   useEffect(() => {
@@ -80,7 +80,7 @@ function ReviewVideo({ mediaId, text }: { mediaId: string; text: string }) {
         ref={node}
         controls
         crossOrigin="anonymous"
-        aria-label="Private caption review"
+        aria-label={text ? "Private caption review" : "Private branding review"}
         style={{
           width: "100%",
           maxHeight: 280,

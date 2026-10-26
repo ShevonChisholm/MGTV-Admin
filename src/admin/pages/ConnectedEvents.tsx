@@ -1,3 +1,4 @@
+import OriginalsSettings, {type OriginFields} from "../components/OriginalsSettings";
 import EventTicketing from "../components/EventTicketing";
 import LifecycleSettings from "../components/LifecycleSettings";
 import MediaAttachment from "../components/MediaAttachment";
@@ -31,7 +32,7 @@ const blank = {
   replayMediaVersionId: null as string | null,
   rightsConfirmed: false,
 };
-type Draft = typeof blank;
+type Draft = typeof blank & OriginFields;
 function localInput(iso: string | null, timezone: string) {
   if (!iso) return "";
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -604,7 +605,8 @@ function EventsView({ id }: { id?: string }) {
                 ).map(([key, label, accept]) => (
                   <MediaAttachment key={`${id}:${key}`} label={label} kind={accept==="video/mp4"?"video":"image"} value={draft[key]} canRead={!!can("media.read")} canUpload={!!can("media.upload")} onBusyChange={setBusy} maxDuration={key==="featureMediaVersionId"?30:undefined} onChange={v=>set(key,v)}/>
                 ))}
-                <label>
+                <OriginalsSettings value={draft} onChange={patch=>{setDraft(d=>({...d,...patch}));}} versions={[draft.featureMediaVersionId,draft.previewMediaVersionId,draft.replayMediaVersionId]} canRead={!!can("media.read")} canReview={!!can("media.upload")&&!!can("content.publish")}/>
+<label>
                   <input
                     type="checkbox"
                     checked={draft.rightsConfirmed}

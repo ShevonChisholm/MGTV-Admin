@@ -1,3 +1,4 @@
+import OriginalsSettings, {type OriginFields} from "../components/OriginalsSettings";
 import LifecycleSettings from "../components/LifecycleSettings";
 import MediaAttachment from "../components/MediaAttachment";
 import LoadingState from "../components/LoadingState";
@@ -15,7 +16,7 @@ const localDate = (iso: string | null) => {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
-type Draft = {
+type Draft = OriginFields & {
   sport?: string;
   competition?: string;
   participants?: string[];
@@ -1199,6 +1200,7 @@ export default function ConnectedEditorial({
                           </div>
                         </Card>
                         <Card title="Rights & availability">
+ <OriginalsSettings value={draft} onChange={change} versions={[draft.primaryMediaVersionId,draft.previewMediaVersionId,draft.featureMediaVersionId,...draft.renditionVersionIds]} canRead={!!can("media.read")} canReview={!!can("media.upload")&&!!can("content.publish")}/>
                           <div className="movie-fields">
                             <label
                               style={{

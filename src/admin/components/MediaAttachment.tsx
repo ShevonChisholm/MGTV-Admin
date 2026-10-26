@@ -192,12 +192,12 @@ function MediaUsage({ id }: { id: string }) {
           try {
             const page = await api(`/admin/media/${id}/usage`);
             setText(
-              page.items.length
+              (page.brandingRetained ? "Retained for an immutable branding review. " : "") + (page.items.length
                 ? page.items
                     .map((x: any) => `${x.resourceType}: ${x.label}`)
                     .join(" · ") +
                     (page.nextCursor ? " · More references exist." : "")
-                : "No saved references. Unsaved editor selections are not included.",
+                : "No saved content references. Unsaved editor selections are not included."),
             );
           } catch (e) {
             setText(e instanceof Error ? e.message : "Unable to load usage.");
