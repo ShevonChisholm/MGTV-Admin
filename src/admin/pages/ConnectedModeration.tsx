@@ -1,3 +1,4 @@
+import DiscussionControls from "../components/DiscussionControls";
 import LoadingState from "../components/LoadingState";
 import React, { useEffect, useState, useRef } from "react";
 import { api, ApiError } from "../api/client";
@@ -15,7 +16,15 @@ import { StatusPill, Toolbar, Note } from "../ui/ops";
 import { PRIORITY, REPORT_OUTCOME } from "./opsMeta";
 import { PageActions } from "../components/PageHeader";
 import StaffAuth from "./StaffAuth";
-const copy: any = {
+const outcomeFor = (kind: string) =>
+  kind === "comment"
+    ? {
+        ...REPORT_OUTCOME,
+        approved: { ...REPORT_OUTCOME.approved, label: "Comment kept" },
+        removed: { ...REPORT_OUTCOME.removed, label: "Comment removed" },
+      }
+    : REPORT_OUTCOME;
+const baseCopy: any = {
   approved: {
     label: "Approve content",
     effect:
@@ -75,6 +84,27 @@ function Workspace({ id }: { id?: string }) {
   const request = useRef<{ body: string; key: string } | null>(null);
   const can = (p: string) => !!session?.permissions.includes(p);
   const allowed = can("moderation.act");
+  const copy =
+    report?.kind === "comment"
+      ? {
+          ...baseCopy,
+          approved: {
+            label: "Keep comment",
+            effect:
+              "Close all currently open reports on this comment. Its current visibility stays unchanged.",
+          },
+          removed: {
+            label: "Remove comment",
+            effect:
+              "Hide this comment and close its open reports. Its film, episode or music release stays published; replies remain available.",
+          },
+          reopen: {
+            label: "Reopen report",
+            effect:
+              "Return the report to the open queue. This does not restore a removed comment.",
+          },
+        }
+      : baseCopy;
   async function run(work: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -126,7 +156,7 @@ function Workspace({ id }: { id?: string }) {
     }).finally(() => setLoaded(true));
   }, []);
   useEffect(() => {
-    if (!composing) return;
+    if (!composing || draft.kind === "comment") return;
     let active = true;
     setTargets([]);
     void run(async () => {
@@ -188,7 +218,9 @@ function Workspace({ id }: { id?: string }) {
         action === "priority"
           ? "Priority saved."
           : action === "reopen"
-            ? "Report reopened. Publication is unchanged."
+            ? report.kind === "comment"
+              ? "Report reopened. Comment visibility is unchanged."
+              : "Report reopened. Publication is unchanged."
             : "Decision saved.",
       );
     });
@@ -339,7 +371,10 @@ function Workspace({ id }: { id?: string }) {
                         {r.status === "open" ? (
                           new Date(r.created_at).toLocaleString()
                         ) : (
-                          <StatusPill map={REPORT_OUTCOME} value={r.outcome} />
+                          <StatusPill
+                            map={outcomeFor(r.kind)}
+                            value={r.outcome}
+                          />
                         )}
                       </td>
                     </tr>
@@ -384,7 +419,7 @@ function Workspace({ id }: { id?: string }) {
                   <StatusPill map={PRIORITY} value={report.priority} />
                   <Badge
                     color={
-                      report.target.status === "published"
+                      ["published", "active"].includes(report.target.status)
                         ? "#4ade80"
                         : "#fbbf24"
                     }
@@ -392,7 +427,9 @@ function Workspace({ id }: { id?: string }) {
                     {report.target.status}
                   </Badge>
                 </div>
-                <h3>{report.snapshot.title}</h3>
+                <h3 style={{ overflowWrap: "anywhere" }}>
+                  {report.snapshot.title}
+                </h3>
                 <blockquote
                   style={{
                     margin: 0,
@@ -401,18 +438,38 @@ function Workspace({ id }: { id?: string }) {
                     background: "var(--bg)",
                     borderRadius: 6,
                     lineHeight: 1.6,
+                    overflowWrap: "anywhere",
+                    whiteSpace: "pre-wrap",
                   }}
                 >
                   {report.snapshot.snippet ||
                     "No description was available when this report was received."}
                 </blockquote>
+                {report.kind === "comment" && (
+                  <div style={{ marginTop: 16 }}>
+                    <strong>Current comment text</strong>
+                    <p
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        overflowWrap: "anywhere",
+                        fontSize: 13,
+                      }}
+                    >
+                      {report.target.currentSnippet}
+                    </p>
+                  </div>
+                )}
                 <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-                  {report.reporter_staff_id
-                    ? "Saved draft evidence captured for this staff report."
-                    : "Published evidence captured when this customer reported."}{" "}
-                  Current publication: {report.target.status}.{" "}
+                  {report.kind === "comment"
+                    ? "Comment evidence captured when the report was received."
+                    : report.reporter_staff_id
+                      ? "Saved draft evidence captured for this staff report."
+                      : "Published evidence captured when this customer reported."}{" "}
+                  Current visibility: {report.target.status}.{" "}
                   {report.target.lastRemovedAt &&
-                    "A removal decision is recorded; reopening or approval does not republish."}
+                    (report.kind === "comment"
+                      ? "Reopening or approval does not restore a removed comment."
+                      : "A removal decision is recorded; reopening or approval does not republish.")}
                 </p>
                 {can(
                   ((
@@ -449,6 +506,16 @@ function Workspace({ id }: { id?: string }) {
                   </Link>
                 )}
               </Card>
+              {report.kind === "comment" && report.target.discussion && (
+                <DiscussionControls
+                  key={
+                    report.target.discussion.kind +
+                    report.target.discussion.targetId
+                  }
+                  discussion={report.target.discussion}
+                  canManage={allowed}
+                />
+              )}
               <Card title="This report">
                 <dl className="moderation-facts">
                   <dt>Reason</dt>
@@ -574,7 +641,10 @@ function Workspace({ id }: { id?: string }) {
                   </div>
                 ) : (
                   <>
-                    <StatusPill map={REPORT_OUTCOME} value={report.outcome} />
+                    <StatusPill
+                      map={outcomeFor(report.kind)}
+                      value={report.outcome}
+                    />
                     <p>{report.reason}</p>
                     <p>
                       Resolved {new Date(report.resolved_at).toLocaleString()}
@@ -681,23 +751,35 @@ function Workspace({ id }: { id?: string }) {
                 setDraft({ ...draft, kind: e.target.value, contentId: "" })
               }
             />
-            <label>
-              Reported item
-              <select
-                className="input"
+            {draft.kind === "comment" ? (
+              <TextField
+                label="Comment ID"
                 value={draft.contentId}
                 onChange={(e) =>
                   setDraft({ ...draft, contentId: e.target.value })
                 }
-              >
-                <option value="">Choose an item</option>
-                {targets.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.draft?.title ?? t.title} · {t.status}
-                  </option>
-                ))}
-              </select>
-            </label>
+              />
+            ) : (
+              <>
+                <label>
+                  Reported item
+                  <select
+                    className="input"
+                    value={draft.contentId}
+                    onChange={(e) =>
+                      setDraft({ ...draft, contentId: e.target.value })
+                    }
+                  >
+                    <option value="">Choose an item</option>
+                    {targets.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.draft?.title ?? t.title} · {t.status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
             <SelectField
               label="Report category"
               options={options.categories}
