@@ -355,6 +355,7 @@ export default function MediaAttachment({
         <input
           type="file"
           aria-label={`Upload ${label}`}
+          style={{display:"block",width:"100%",maxWidth:"100%",minWidth:0,boxSizing:"border-box"}}
           disabled={disabled || busy || !canUpload}
           accept={
             kind === "image"

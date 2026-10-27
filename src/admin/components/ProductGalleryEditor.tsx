@@ -139,6 +139,7 @@ export default function ProductGalleryEditor({
                 border: "1px solid var(--border)",
                 borderRadius: 12,
                 background: "var(--card)",
+                minWidth:0, overflowWrap:"anywhere",
               }}
             >
               <GalleryPreview
@@ -174,11 +175,12 @@ export default function ProductGalleryEditor({
                 key={i}
                 disabled={busy || uploading}
                 className="min-w-0 rounded-lg border border-white/10 p-3"
-                style={{ background: "var(--card)", padding: 14 }}
+                style={{ background: "var(--card)", padding: 14, minWidth:0, minInlineSize:0, overflowWrap:"anywhere" }}
               >
                 <legend
                   style={{
                     padding: "0 6px",
+                    maxWidth:"100%", overflowWrap:"anywhere",
                     color: "var(--gold)",
                     fontWeight: 600,
                   }}
@@ -220,6 +222,7 @@ export default function ProductGalleryEditor({
                         : "Caption"}
                     <input
                       className="input w-full mt-1"
+                      style={{minWidth:0,maxWidth:"100%",boxSizing:"border-box"}}
                       maxLength={k === "label" ? 60 : k === "alt" ? 400 : 600}
                       value={image[k]}
                       onChange={(e) =>
