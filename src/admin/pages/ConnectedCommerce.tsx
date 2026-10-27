@@ -1,3 +1,4 @@
+import ProductGalleryEditor from "../components/ProductGalleryEditor";
 import MediaAttachment from "../components/MediaAttachment";
 import LoadingState from "../components/LoadingState";
 import { useEffect, useRef, useState } from "react";
@@ -229,6 +230,7 @@ export default function ConnectedCommerce() {
                   {selected.name}
                 </h2>
                 <p>{selected.description}</p>
+                <ProductGalleryEditor key={selected.id+":"+selected.version} product={selected} permissions={session.permissions} onSaved={async()=>{setSelected(await api("/admin/commerce/products/"+selected.id));await refresh();}}/>
                 <p>
                   Status: {selected.status} · Version {selected.version}
                 </p>

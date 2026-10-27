@@ -181,7 +181,7 @@ export function Modal({ title, onClose, children, footer, side, width = 560, lab
       >
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: "1px solid var(--border)", gap: 10 }}>
           <h2 id={titleId} style={{ minWidth:0,overflowWrap:"anywhere",margin: 0, fontSize: 16, fontFamily: "var(--font-sans)", fontWeight: 700 }}>{title}</h2>
-          <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Close dialog">Close</button>
+          <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Close dialog" style={{flexShrink:0,whiteSpace:"nowrap"}}>Close</button>
         </header>
         <div style={{ padding: 18, overflowY: "auto", flex: 1, minHeight:0,minWidth:0,maxWidth:"100%" }}>{children}</div>
         {footer && <footer style={{ padding: "12px 18px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>{footer}</footer>}
