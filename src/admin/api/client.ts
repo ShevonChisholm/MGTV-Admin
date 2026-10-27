@@ -25,7 +25,7 @@ export async function api(
     if (method === "POST" || key)
       headers["Idempotency-Key"] = key ?? crypto.randomUUID();
   }
-  if (version !== undefined) headers["If-Match"] = `"v${version}"`;
+  if (version !== undefined) headers["X-MGTV-If-Match"] = `"v${version}"`;
   const r = await fetch(base + path, {
     method,
     headers,
