@@ -48,6 +48,8 @@ export default function SponsorPreview({
               width={1440}
               height={900}
               className="h-full w-full object-cover"
+              referrerPolicy="same-origin"
+              loading="lazy"
               onError={() => setStoryFailed(true)}
             />
           ) : (
@@ -73,6 +75,8 @@ export default function SponsorPreview({
               }
               alt={(draft.name || "Sponsor") + " selected logo"}
               className="h-full w-full object-contain p-4"
+              referrerPolicy="same-origin"
+              loading="lazy"
               onError={() => setFailed(true)}
             />
           ) : (

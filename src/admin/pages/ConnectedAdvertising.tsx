@@ -10,6 +10,17 @@ import { RouteTabs, Toolbar, StatusPill, Note } from "../ui/ops";
 import ContactsEditor from "../ui/Contacts";
 import { CAMPAIGN_STATUS, ORG_STATUS } from "./opsMeta";
 import StaffAuth from "./StaffAuth";
+import MediaIcon from "../components/MediaIcon";
+import {
+  AdvertisingGrid,
+  AdvertiserOverview,
+  CampaignOverview,
+  PartnerHistory,
+  PartnerImage,
+  PartnerSkeleton,
+  TargetArtwork,
+  CampaignFlow,
+} from "../components/PartnersVisual";
 const HOME = "00000000-0000-4000-8000-000000000000";
 const advertiserBlank = {
   name: "",
@@ -69,6 +80,11 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
     [report, setReport] = useState<any>(null),
     [q, setQ] = useState(""),
     [status, setStatus] = useState(""),
+    [applied, setApplied] = useState({ q: "", status: "" }),
+    [pane, setPane] = useState<"overview" | "edit" | "review" | "activity">(
+      isNew ? "edit" : "overview",
+    ),
+    [placementQuery, setPlacementQuery] = useState(""),
     [cursor, setCursor] = useState<string | null>(null),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -126,7 +142,7 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
     } while (next);
     return rows;
   }
-  async function load() {
+  async function load(filters = applied) {
     const s = await api("/admin/session");
     setSession(s);
     if (!s.permissions.includes("advertising.read")) return;
@@ -145,10 +161,11 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
         );
     } else if (!id) {
       const p = await api(
-        base + "?" + new URLSearchParams({ q, status, limit: "25" }),
+        base + "?" + new URLSearchParams({ ...filters, limit: "24" }),
       );
       setItems(p.items);
       setCursor(p.nextCursor);
+      setApplied(filters);
     }
     if (campaign) {
       setAdvertisers(await all("/admin/advertising/advertisers"));
@@ -175,6 +192,7 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                 kind: type,
                 title: x.draft?.title ?? x.title,
                 status: x.status,
+                record: x,
               });
           }
           setTargets(options);
@@ -263,7 +281,7 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
             {session && (
               <button
                 className="btn"
-                disabled={busy}
+                disabled={busy || dirty}
                 onClick={() => void run(load)}
               >
                 Reload server data
@@ -273,7 +291,11 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
         )}
       </div>
       {!loaded ? (
-        <LoadingState label={<>Loading Advertising…</>} variant="table" />
+        id ? (
+          <LoadingState label="Loading advertising record…" variant="form" />
+        ) : (
+          <PartnerSkeleton />
+        )
       ) : !session ? (
         <StaffAuth onAuthenticated={() => run(load)} />
       ) : !can("advertising.read") ? (
@@ -309,48 +331,39 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                       body="Reporting appears after a campaign is activated."
                     />
                   ) : (
-                    <div className="scroll-x">
-                      <table className="tbl">
-                        <thead>
-                          <tr>
-                            <th>Campaign</th>
-                            <th>Status</th>
-                            <th>Video starts</th>
-                            <th>Clicks</th>
-                            <th>Completions</th>
-                            <th>Skips</th>
-                            <th>Failures</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {report?.items.map((r: any) => (
-                            <tr key={r.id}>
-                              <td>
-                                <Link
-                                  to={"/admin/advertising/campaigns/" + r.id}
-                                >
-                                  {r.name}
-                                </Link>
-                              </td>
-                              <td>
-                                <StatusPill
-                                  map={CAMPAIGN_STATUS}
-                                  value={r.status}
-                                />
-                              </td>
-                              {[
-                                "impressions",
-                                "clicks",
-                                "completions",
-                                "skips",
-                                "failures",
-                              ].map((k) => (
-                                <td key={k}>{r[k]}</td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="pv-report-grid">
+                      {report?.items.map((r: any) => (
+                        <article className="pv-panel" key={r.id}>
+                          <div className="pv-list-head">
+                            <h3>
+                              <MediaIcon name="campaign" />{" "}
+                              <Link to={"/admin/advertising/campaigns/" + r.id}>
+                                {r.name}
+                              </Link>
+                            </h3>
+                            <StatusPill
+                              map={CAMPAIGN_STATUS}
+                              value={r.status}
+                            />
+                          </div>
+                          <dl className="pv-report-stats">
+                            {[
+                              ["impressions", "Video starts", "video"],
+                              ["clicks", "Clicks", "link"],
+                              ["completions", "Completions", "check"],
+                              ["skips", "Skips", "arrow"],
+                              ["failures", "Failures", "alert"],
+                            ].map(([key, label, icon]) => (
+                              <div key={key}>
+                                <dt>
+                                  <MediaIcon name={icon} size={16} /> {label}
+                                </dt>
+                                <dd>{Number(r[key] ?? 0).toLocaleString()}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        </article>
+                      ))}
                     </div>
                   )}
                 </>
@@ -366,6 +379,24 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                       </Link>
                     )}
                   </PageActions>
+                  <div className="pv-list-head">
+                    <div>
+                      <span className="cv-kicker">MGTV advertising</span>
+                      <h2>
+                        {campaign
+                          ? "Creative with a clear purpose."
+                          : "The brands behind the campaigns."}
+                      </h2>
+                      <p>
+                        {campaign
+                          ? "Saved creative, placement scope and review status in one place."
+                          : "Organization details stay separate from campaign approval and delivery."}
+                      </p>
+                    </div>
+                    <span className="pv-muted">
+                      {items.length} loaded{cursor ? " · more available" : ""}
+                    </span>
+                  </div>
                   <Toolbar>
                     <TextField
                       label={
@@ -386,10 +417,23 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                     <button
                       className="btn"
                       disabled={busy}
-                      onClick={() => void run(load)}
+                      onClick={() => void run(() => load({ q, status }))}
                     >
-                      Apply filters
+                      <MediaIcon name="filter" size={16} /> Apply filters
                     </button>
+                    {(applied.q || applied.status) && (
+                      <button
+                        className="btn"
+                        disabled={busy}
+                        onClick={() => {
+                          setQ("");
+                          setStatus("");
+                          void run(() => load({ q: "", status: "" }));
+                        }}
+                      >
+                        Clear filters
+                      </button>
+                    )}
                   </Toolbar>
                   {items.length === 0 ? (
                     <EmptyState
@@ -397,72 +441,11 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                       body="Clear the filters or create a record."
                     />
                   ) : (
-                    <div
-                      className="scroll-x"
-                      style={{
-                        border: "1px solid var(--border)",
-                        borderRadius: 10,
-                        background: "var(--card)",
-                      }}
-                    >
-                      <table className="tbl">
-                        <thead>
-                          <tr>
-                            <th>{campaign ? "Campaign" : "Advertiser"}</th>
-                            {campaign ? (
-                              <>
-                                <th>Advertiser</th>
-                                <th>Dates</th>
-                                <th>Placements</th>
-                              </>
-                            ) : (
-                              <th>Contacts</th>
-                            )}
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {items.map((r) => (
-                            <tr key={r.id}>
-                              <td>
-                                <Link
-                                  to={"/admin/advertising/" + kind + "/" + r.id}
-                                >
-                                  {campaign ? r.draft.name : r.body.name}
-                                </Link>
-                              </td>
-                              {campaign ? (
-                                <>
-                                  <td>
-                                    {advertiserName(r.draft.advertiserId)}
-                                  </td>
-                                  <td>
-                                    {r.draft.startAt
-                                      ? new Date(
-                                          r.draft.startAt,
-                                        ).toLocaleString()
-                                      : "Not set"}{" "}
-                                    to{" "}
-                                    {r.draft.endAt
-                                      ? new Date(r.draft.endAt).toLocaleString()
-                                      : "Not set"}
-                                  </td>
-                                  <td>{r.draft.placements.length}</td>
-                                </>
-                              ) : (
-                                <td>{r.body.contacts.length}</td>
-                              )}
-                              <td>
-                                <StatusPill
-                                  map={campaign ? CAMPAIGN_STATUS : ORG_STATUS}
-                                  value={r.status}
-                                />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    <AdvertisingGrid
+                      items={items}
+                      kind={kind}
+                      advertisers={advertisers}
+                    />
                   )}
                   {cursor && (
                     <button
@@ -474,10 +457,9 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                             base +
                               "?" +
                               new URLSearchParams({
-                                q,
-                                status,
+                                ...applied,
                                 cursor,
-                                limit: "25",
+                                limit: "24",
                               }),
                           );
                           setItems((v) => [...v, ...p.items]);
@@ -502,41 +484,120 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                 />
               ) : (
                 <>
-                  <PageActions>
-                    <span role="status">
-                      {dirty ? "Unsaved changes" : "All changes saved"}
-                    </span>
-                    <button
-                      className="btn"
-                      disabled={busy || !dirty}
-                      onClick={() =>
-                        setDraft(
-                          structuredClone(
-                            record
-                              ? campaign
-                                ? record.draft
-                                : record.body
-                              : blank,
-                          ),
-                        )
-                      }
-                    >
-                      Discard
-                    </button>
-                    <button
-                      className="btn btn-primary"
-                      disabled={busy || !editable || (!dirty && !isNew)}
-                      onClick={() => void run(save)}
-                    >
-                      {campaign
-                        ? isNew
-                          ? "Save draft"
-                          : "Save draft changes"
-                        : isNew
-                          ? "Add advertiser"
-                          : "Save details"}
-                    </button>
-                  </PageActions>
+                  {pane === "edit" && (
+                    <PageActions>
+                      <span role="status">
+                        {dirty ? "Unsaved changes" : "All changes saved"}
+                      </span>
+                      <button
+                        className="btn"
+                        disabled={busy || !dirty}
+                        onClick={() =>
+                          setDraft(
+                            structuredClone(
+                              record
+                                ? campaign
+                                  ? record.draft
+                                  : record.body
+                                : blank,
+                            ),
+                          )
+                        }
+                      >
+                        Discard
+                      </button>
+                      <button
+                        className="btn btn-primary"
+                        disabled={busy || !editable || (!dirty && !isNew)}
+                        onClick={() => void run(save)}
+                      >
+                        {campaign
+                          ? isNew
+                            ? "Save draft"
+                            : "Save draft changes"
+                          : isNew
+                            ? "Add advertiser"
+                            : "Save details"}
+                      </button>
+                    </PageActions>
+                  )}
+                  {!isNew && (
+                    <>
+                      <div className="pv-state-line">
+                        <StatusPill
+                          map={campaign ? CAMPAIGN_STATUS : ORG_STATUS}
+                          value={record.status}
+                        />
+                        <span>
+                          {dirty
+                            ? "Unsaved changes · overview shows saved information"
+                            : "Saved version " + record.version}
+                        </span>
+                      </div>
+                      <nav
+                        className="cv-detail-nav"
+                        aria-label="Advertising record views"
+                      >
+                        {(
+                          ["overview", "edit", "review", "activity"] as const
+                        ).map((v) => (
+                          <button
+                            key={v}
+                            aria-pressed={pane === v}
+                            onClick={() => setPane(v)}
+                          >
+                            <MediaIcon
+                              name={
+                                v === "overview"
+                                  ? campaign
+                                    ? "campaign"
+                                    : "brand"
+                                  : v === "edit"
+                                    ? "edit"
+                                    : v === "review"
+                                      ? "review"
+                                      : "clock"
+                              }
+                              size={17}
+                            />
+                            {v === "overview"
+                              ? "Overview"
+                              : v === "edit"
+                                ? "Edit details"
+                                : v === "review"
+                                  ? campaign
+                                    ? "Review & status"
+                                    : "Organization status"
+                                  : "Activity"}
+                          </button>
+                        ))}
+                      </nav>
+                      <div hidden={pane !== "overview"}>
+                        {campaign ? (
+                          <CampaignOverview
+                            record={record}
+                            advertiser={advertiserName(
+                              record.draft.advertiserId,
+                            )}
+                            targets={targets}
+                            onReview={() => setPane("review")}
+                            active={pane === "overview"}
+                          />
+                        ) : (
+                          <AdvertiserOverview
+                            record={record}
+                            campaigns={organizationCampaigns}
+                          />
+                        )}
+                      </div>
+                      <div hidden={pane !== "activity"}>
+                        <Card title="Activity history">
+                          <PartnerHistory items={history} />
+                          {!history.length && <p>No recorded activity yet.</p>}
+                        </Card>
+                      </div>
+                    </>
+                  )}
                   {campaign && record?.reviewReason && (
                     <Note
                       tone={record.status === "rejected" ? "bad" : "info"}
@@ -545,8 +606,11 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                       {record.reviewReason}
                     </Note>
                   )}
-                  <div className={campaign ? "editor-layout" : ""}>
-                    <div>
+                  <div
+                    className="pv-operations-grid"
+                    hidden={pane === "overview" || pane === "activity"}
+                  >
+                    <div hidden={pane !== "edit"} className="pv-edit-grid">
                       <fieldset
                         disabled={busy || !editable}
                         style={{
@@ -716,6 +780,13 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                         ) : (
                           <>
                             <Card title="Placements">
+                              <TextField
+                                label="Find placement titles"
+                                value={placementQuery}
+                                onChange={(e) =>
+                                  setPlacementQuery(e.target.value)
+                                }
+                              />
                               <div className="grid-2">
                                 <div>
                                   <strong>Content items</strong>
@@ -737,33 +808,44 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                                       select new content placements.
                                     </p>
                                   )}
-                                  {targets.map((t) => (
-                                    <label
-                                      key={t.kind + t.id}
-                                      style={{
-                                        display: "flex",
-                                        gap: 8,
-                                        padding: "4px 0",
-                                        fontSize: 13.5,
-                                      }}
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={draft.placements.some(
-                                          (x: any) =>
-                                            x.kind === t.kind &&
-                                            x.targetId === t.id,
-                                        )}
-                                        onChange={() =>
-                                          toggle({
-                                            kind: t.kind,
-                                            targetId: t.id,
-                                          })
-                                        }
-                                      />
-                                      {t.title} ({t.kind} · {t.status})
-                                    </label>
-                                  ))}
+                                  {targets
+                                    .filter((t) =>
+                                      t.title
+                                        .toLowerCase()
+                                        .includes(placementQuery.toLowerCase()),
+                                    )
+                                    .map((t) => (
+                                      <label
+                                        key={t.kind + t.id}
+                                        className="pv-target-choice"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={draft.placements.some(
+                                            (x: any) =>
+                                              x.kind === t.kind &&
+                                              x.targetId === t.id,
+                                          )}
+                                          onChange={() =>
+                                            toggle({
+                                              kind: t.kind,
+                                              targetId: t.id,
+                                            })
+                                          }
+                                        />
+                                        <TargetArtwork
+                                          record={t.record}
+                                          kind={t.kind}
+                                        />
+                                        <span>
+                                          {t.title}
+                                          <small className="pv-muted">
+                                            {" "}
+                                            {t.kind} · {t.status}
+                                          </small>
+                                        </span>
+                                      </label>
+                                    ))}
                                   {draft.placements
                                     .filter(
                                       (p: any) =>
@@ -813,35 +895,92 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                               </div>
                             </Card>
                             <Card title="Creative">
-                              <div style={{display:"grid",gap:12}}>{(["image","video"] as const).map(kind=><MediaAttachment key={`${record?.id??"new"}:${kind}`} label={kind==="image"?"Add image creative":"Add video creative (up to 30 seconds)"} kind={kind} value={null} disabled={busy||!editable} canRead={!!can("media.read")} canUpload={!!can("media.upload")} onBusyChange={setBusy} maxDuration={kind==="video"?30:undefined} onChange={v=>{if(v&&!draft.creativeVersionIds.includes(v))update("creativeVersionIds",[...draft.creativeVersionIds,v]);}}/>)}</div>
+                              <div style={{ display: "grid", gap: 12 }}>
+                                {(["image", "video"] as const).map((kind) => (
+                                  <MediaAttachment
+                                    key={`${record?.id ?? "new"}:${kind}`}
+                                    label={
+                                      kind === "image"
+                                        ? "Add image creative"
+                                        : "Add video creative (up to 30 seconds)"
+                                    }
+                                    kind={kind}
+                                    value={null}
+                                    disabled={busy || !editable}
+                                    canRead={!!can("media.read")}
+                                    canUpload={!!can("media.upload")}
+                                    onBusyChange={setBusy}
+                                    maxDuration={
+                                      kind === "video" ? 30 : undefined
+                                    }
+                                    onChange={(v) => {
+                                      if (
+                                        v &&
+                                        !draft.creativeVersionIds.includes(v)
+                                      )
+                                        update("creativeVersionIds", [
+                                          ...draft.creativeVersionIds,
+                                          v,
+                                        ]);
+                                    }}
+                                  />
+                                ))}
+                              </div>
                               {draft.creativeVersionIds.length === 0 ? (
                                 <p>No creative attached.</p>
                               ) : (
-                                <ul>
-                                  {draft.creativeVersionIds.map((v: string) => (
-                                    <li
-                                      key={v}
-                                      style={{ overflowWrap: "anywhere" }}
-                                    >
-                                      {record?.creative?.find(
-                                        (c: any) => c.id === v,
-                                      )?.filename ?? v}{" "}
-                                      <button
-                                        className="btn btn-sm"
-                                        onClick={() =>
-                                          update(
-                                            "creativeVersionIds",
-                                            draft.creativeVersionIds.filter(
-                                              (x: string) => x !== v,
-                                            ),
-                                          )
-                                        }
-                                      >
-                                        Remove
-                                      </button>
-                                    </li>
-                                  ))}
-                                </ul>
+                                <div className="pv-creative-grid">
+                                  {draft.creativeVersionIds.map((v: string) => {
+                                    const c = record?.creative?.find(
+                                      (c: any) => c.id === v,
+                                    );
+                                    return (
+                                      <div className="pv-asset-card" key={v}>
+                                        {c?.kind === "image" ? (
+                                          <PartnerImage src={c.url} />
+                                        ) : (
+                                          <p className="pv-notice">
+                                            <MediaIcon
+                                              name={
+                                                c?.kind === "video"
+                                                  ? "video"
+                                                  : "file"
+                                              }
+                                            />
+                                            {c
+                                              ? "Video creative · review under Overview"
+                                              : "Save the draft to preview this file"}
+                                          </p>
+                                        )}
+                                        <strong>
+                                          {c?.filename ??
+                                            "Selected creative file"}
+                                        </strong>
+                                        <div className="pv-asset-actions">
+                                          <button
+                                            type="button"
+                                            className="btn btn-sm"
+                                            aria-label={
+                                              "Remove creative " +
+                                              (c?.filename ?? "file")
+                                            }
+                                            onClick={() =>
+                                              update(
+                                                "creativeVersionIds",
+                                                draft.creativeVersionIds.filter(
+                                                  (x: string) => x !== v,
+                                                ),
+                                              )
+                                            }
+                                          >
+                                            <MediaIcon name="trash" size={15} />{" "}
+                                            Remove
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               )}
                               <label style={{ display: "flex", gap: 8 }}>
                                 <input
@@ -858,71 +997,21 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                           </>
                         )}
                       </fieldset>
-                      {!isNew && (
-                        <>
-                          {!campaign && (
-                            <Card
-                              title={
-                                "Campaigns (" +
-                                organizationCampaigns.length +
-                                ")"
-                              }
-                            >
-                              {organizationCampaigns.length ? (
-                                <ul>
-                                  {organizationCampaigns.map((c) => (
-                                    <li key={c.id}>
-                                      <Link
-                                        to={
-                                          "/admin/advertising/campaigns/" + c.id
-                                        }
-                                      >
-                                        {c.draft.name}
-                                      </Link>{" "}
-                                      <StatusPill
-                                        map={CAMPAIGN_STATUS}
-                                        value={c.status}
-                                      />
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <p>No campaigns yet.</p>
-                              )}
-                            </Card>
-                          )}
-                          <Card title="Activity history">
-                            <ul style={{ paddingLeft: 18 }}>
-                              {history.map((h, i) => (
-                                <li
-                                  key={i}
-                                  style={{
-                                    overflowWrap: "anywhere",
-                                    marginBottom: 10,
-                                  }}
-                                >
-                                  <strong>
-                                    {h.action
-                                      .replace("advertising.", "")
-                                      .replaceAll("_", " ")}
-                                  </strong>
-                                  <div>
-                                    {h.actor ?? "Staff member"} ·{" "}
-                                    {new Date(h.created_at).toLocaleString()}
-                                  </div>
-                                  {h.details?.reason && (
-                                    <p>{h.details.reason}</p>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-                          </Card>
-                        </>
-                      )}
                     </div>
-                    <aside>
-                      {!isNew && record && (
+                    <aside
+                      style={
+                        pane === "review" ? { gridColumn: "1 / -1" } : undefined
+                      }
+                    >
+                      {!isNew && record && pane === "review" && (
                         <Card title={campaign ? "Review and status" : "Status"}>
+                          {campaign && <CampaignFlow status={record.status} />}
+                          {dirty && (
+                            <p className="pv-notice">
+                              Save or discard edits before making a decision.
+                              Actions apply to the saved revision.
+                            </p>
+                          )}
                           <StatusPill
                             map={campaign ? CAMPAIGN_STATUS : ORG_STATUS}
                             value={record.status}
@@ -1083,6 +1172,8 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                                 key={c.id}
                                 src={c.url}
                                 alt="Campaign creative preview"
+                                referrerPolicy="same-origin"
+                                loading="lazy"
                                 style={{ width: "100%", borderRadius: 8 }}
                               />
                             ))}
@@ -1093,9 +1184,11 @@ function AdvertisingView({ kind, id }: { kind: string; id?: string }) {
                                 draft.creativeVersionIds.includes(c.id),
                             )
                             .slice(0, 1)
-                            .map((c: any) => (
-                              <CreativeVideo key={c.id} src={c.url} />
-                            ))}
+                            .map((c: any) =>
+                              pane === "edit" || pane === "review" ? (
+                                <CreativeVideo key={c.id} src={c.url} />
+                              ) : null,
+                            )}
                           <p>
                             Save uploaded creative to preview it. Customer
                             delivery uses the approved revision only.

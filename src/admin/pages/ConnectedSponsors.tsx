@@ -16,6 +16,15 @@ import { PageActions } from "../components/PageHeader";
 import { Toolbar, Note } from "../ui/ops";
 import ContactsEditor from "../ui/Contacts";
 import StaffAuth from "./StaffAuth";
+import MediaIcon from "../components/MediaIcon";
+import {
+  SponsorGrid,
+  SponsorOverview,
+  SponsorImage,
+  PartnerSkeleton,
+  PartnerHistory,
+  TargetArtwork,
+} from "../components/PartnersVisual";
 const blank = {
   name: "",
   description: "",
@@ -30,11 +39,13 @@ const blank = {
   rightsConfirmed: false,
 };
 const tabs = [
-    { id: "details", label: "Details" },
+    { id: "overview", label: "Overview" },
+    { id: "details", label: "Organization" },
     { id: "contacts", label: "Contacts" },
     { id: "assets", label: "Brand assets" },
     { id: "associations", label: "Shows & events" },
     { id: "activity", label: "Activity" },
+    { id: "review", label: "Review & publish" },
   ],
   assetKinds = [
     { value: "logo_light", label: "Logo for light backgrounds" },
@@ -50,7 +61,9 @@ function SponsorView({ id }: { id?: string }) {
     isNew = id === "new",
     tab = tabs.some((t) => t.id === route.parts[1])
       ? route.parts[1]
-      : "details";
+      : isNew
+        ? "details"
+        : "overview";
   const [session, setSession] = useState<any>(null),
     [loaded, setLoaded] = useState(false),
     [record, setRecord] = useState<any>(null),
@@ -63,6 +76,8 @@ function SponsorView({ id }: { id?: string }) {
     [targetsError, setTargetsError] = useState(""),
     [q, setQ] = useState(""),
     [status, setStatus] = useState(""),
+    [applied, setApplied] = useState({ q: "", status: "" }),
+    [targetQuery, setTargetQuery] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -97,13 +112,12 @@ function SponsorView({ id }: { id?: string }) {
       setBusy(false);
     }
   }
-  function query(after?: string) {
+  function query(after?: string, filters = applied) {
     return (
       "?" +
       new URLSearchParams({
-        q,
-        status,
-        limit: "25",
+        ...filters,
+        limit: "24",
         ...(after ? { cursor: after } : {}),
       })
     );
@@ -139,7 +153,7 @@ function SponsorView({ id }: { id?: string }) {
       setTargetsError((e as Error).message);
     }
   }
-  async function load() {
+  async function load(filters = applied) {
     const s = await api("/admin/session");
     setSession(s);
     if (!s.permissions.includes("sponsors.read"))
@@ -152,9 +166,10 @@ function SponsorView({ id }: { id?: string }) {
       setDraft(r.draft);
       setHistory((await api("/admin/sponsors/" + id + "/history")).items);
     } else if (!id) {
-      const p = await api("/admin/sponsors" + query());
+      const p = await api("/admin/sponsors" + query(undefined, filters));
       setItems(p.items);
       setCursor(p.nextCursor);
+      setApplied(filters);
     }
     if (
       id &&
@@ -193,7 +208,13 @@ function SponsorView({ id }: { id?: string }) {
     } else setHistory((await api("/admin/sponsors/" + id + "/history")).items);
   }
   if (!loaded)
-    return <LoadingState label={<>Loading sponsors…</>} variant="table" />;
+    return id ? (
+      <LoadingState label="Loading sponsor…" variant="form" />
+    ) : (
+      <div className="page-pad partners-workspace">
+        <PartnerSkeleton />
+      </div>
+    );
   if (!session)
     return (
       <>
@@ -222,37 +243,41 @@ function SponsorView({ id }: { id?: string }) {
       </div>
     );
   return (
-    <div className="page-pad">
+    <div className="page-pad partners-workspace">
       <PageActions>
         {id ? (
           <>
             <Link className="btn" to="/admin/sponsors">
               ← All sponsors
             </Link>
-            <span
-              role="status"
-              style={{
-                fontSize: 12.5,
-                alignSelf: "center",
-                color: dirty ? "var(--yellow)" : "var(--text-muted)",
-              }}
-            >
-              {dirty ? "Unsaved changes" : "All changes saved"}
-            </span>
-            <button
-              className="btn"
-              disabled={!dirty || busy}
-              onClick={() => change(record?.draft ?? blank)}
-            >
-              Discard
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={!can("sponsors.manage") || busy || !dirty}
-              onClick={() => void run(save)}
-            >
-              {busy ? "Working…" : isNew ? "Create sponsor" : "Save draft"}
-            </button>
+            {(isNew || !["overview", "activity", "review"].includes(tab)) && (
+              <>
+                <span
+                  role="status"
+                  style={{
+                    fontSize: 12.5,
+                    alignSelf: "center",
+                    color: dirty ? "var(--yellow)" : "var(--text-muted)",
+                  }}
+                >
+                  {dirty ? "Unsaved changes" : "All changes saved"}
+                </span>
+                <button
+                  className="btn"
+                  disabled={!dirty || busy}
+                  onClick={() => change(record?.draft ?? blank)}
+                >
+                  Discard
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={!can("sponsors.manage") || busy || !dirty}
+                  onClick={() => void run(save)}
+                >
+                  {busy ? "Working…" : isNew ? "Create sponsor" : "Save draft"}
+                </button>
+              </>
+            )}
           </>
         ) : (
           can("sponsors.manage") && (
@@ -291,6 +316,19 @@ function SponsorView({ id }: { id?: string }) {
       )}
       {!id ? (
         <>
+          <div className="pv-list-head">
+            <div>
+              <span className="cv-kicker">MGTV editorial partners</span>
+              <h2>Behind the stories.</h2>
+              <p>
+                Brand identities and contextual credits, with private contacts
+                kept separate.
+              </p>
+            </div>
+            <span className="pv-muted">
+              {items.length} loaded{cursor ? " · more available" : ""}
+            </span>
+          </div>
           <Toolbar>
             <div style={{ flex: "1 1 220px" }}>
               <TextField
@@ -310,56 +348,26 @@ function SponsorView({ id }: { id?: string }) {
             <button
               className="btn"
               disabled={busy}
-              onClick={() => void run(load)}
+              onClick={() => void run(() => load({ q, status }))}
             >
-              Apply filters
+              <MediaIcon name="filter" size={16} /> Apply filters
             </button>
+            {(applied.q || applied.status) && (
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => {
+                  setQ("");
+                  setStatus("");
+                  void run(() => load({ q: "", status: "" }));
+                }}
+              >
+                Clear filters
+              </button>
+            )}
           </Toolbar>
           {items.length ? (
-            <div
-              className="scroll-x"
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: 10,
-                background: "var(--card)",
-              }}
-            >
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th>Sponsor</th>
-                    <th>Status</th>
-                    <th>Publication</th>
-                    <th>Contacts</th>
-                    <th>Shows</th>
-                    <th>Events</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((r) => (
-                    <tr key={r.id}>
-                      <td>
-                        <Link
-                          to={"/admin/sponsors/" + r.id + "/details"}
-                          style={{
-                            display: "inline-block",
-                            fontWeight: 600,
-                            color: "var(--text-primary)",
-                          }}
-                        >
-                          {r.draft.name}
-                        </Link>
-                      </td>
-                      <td>{r.status}</td>
-                      <td>{r.publicationStatus}</td>
-                      <td>{r.draft.contacts.length}</td>
-                      <td>{r.draft.showIds.length}</td>
-                      <td>{r.draft.eventIds.length}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <SponsorGrid items={items} />
           ) : (
             <EmptyState
               title="No sponsors match"
@@ -391,15 +399,16 @@ function SponsorView({ id }: { id?: string }) {
                 Organization: {record?.status} · Publication:{" "}
                 {record?.publicationStatus}
               </p>
+              {dirty && (
+                <p className="pv-notice" role="status">
+                  Unsaved changes · overview shows saved information. Return to
+                  an editing section to save or discard.
+                </p>
+              )}
               <div
                 role="group"
                 aria-label="Sponsor sections"
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  flexWrap: "wrap",
-                  marginBottom: 18,
-                }}
+                className="cv-detail-nav"
               >
                 {tabs.map((t) => (
                   <button
@@ -412,11 +421,32 @@ function SponsorView({ id }: { id?: string }) {
                       leaving.current = false;
                     }}
                   >
+                    <MediaIcon
+                      name={
+                        t.id === "overview"
+                          ? "brand"
+                          : t.id === "contacts"
+                            ? "users"
+                            : t.id === "assets"
+                              ? "image"
+                              : t.id === "associations"
+                                ? "link"
+                                : t.id === "activity"
+                                  ? "clock"
+                                  : t.id === "review"
+                                    ? "review"
+                                    : "edit"
+                      }
+                      size={16}
+                    />
                     {t.label}
                   </button>
                 ))}
               </div>
             </>
+          )}
+          {!isNew && tab === "overview" && (
+            <SponsorOverview record={record} shows={shows} events={events} />
           )}
           {(isNew || tab === "details") && (
             <>
@@ -527,54 +557,28 @@ function SponsorView({ id }: { id?: string }) {
               </p>
               {draft.brandAssets.length ? (
                 <>
-                  <div style={{ display: "grid", gap: 12 }}>
+                  <div className="pv-asset-grid">
                     {draft.brandAssets.map((a) => (
-                      <div
-                        key={a.id}
-                        style={{
-                          display: "flex",
-                          gap: 16,
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          flexWrap: "wrap",
-                          border: "1px solid var(--border)",
-                          borderRadius: 8,
-                          padding: 12,
-                        }}
-                      >
+                      <div className="pv-asset-card" key={a.id}>
                         {record?.draft.brandAssets.some(
                           (x: any) => x.mediaVersionId === a.mediaVersionId,
-                        ) && (
-                          <img
-                            src={
-                              "/api/v1/admin/sponsors/" +
-                              id +
-                              "/assets/" +
-                              a.mediaVersionId
-                            }
-                            alt={a.label}
-                            style={{
-                              width: 160,
-                              maxWidth: "100%",
-                              height: 64,
-                              objectFit: "contain",
-                              background: "#141414",
-                              borderRadius: 6,
-                            }}
-                          />
+                        ) ? (
+                          <SponsorImage record={record} asset={a} />
+                        ) : (
+                          <p className="pv-notice">
+                            Save the draft to preview this selection.
+                          </p>
                         )}
-                        <div style={{ flex: 1, minWidth: 140 }}>
-                          <strong>{a.label}</strong>
-                          <div
-                            style={{
-                              fontSize: 12,
-                              color: "var(--text-secondary)",
-                            }}
-                          >
-                            {assetKinds.find((k) => k.value === a.kind)?.label}
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", gap: 6 }}>
+                        <strong>{a.label}</strong>
+                        <small>
+                          {assetKinds.find((k) => k.value === a.kind)?.label}
+                        </small>
+                        {draft.publicAssetId === a.id && (
+                          <span className="cv-kicker">
+                            Selected public logo
+                          </span>
+                        )}
+                        <div className="pv-asset-actions">
                           <button
                             className="btn btn-sm"
                             disabled={busy || !can("sponsors.manage")}
@@ -583,14 +587,14 @@ function SponsorView({ id }: { id?: string }) {
                               setAssetProgress("");
                             }}
                           >
-                            Edit
+                            <MediaIcon name="edit" size={15} /> Edit
                           </button>
                           <button
                             className="btn btn-sm"
                             disabled={busy || !can("sponsors.manage")}
                             onClick={() => setRemove(a)}
                           >
-                            Remove…
+                            <MediaIcon name="trash" size={15} /> Remove…
                           </button>
                         </div>
                       </div>
@@ -701,6 +705,11 @@ function SponsorView({ id }: { id?: string }) {
                       </button>
                     </p>
                   )}
+                  <TextField
+                    label="Find a show or event"
+                    value={targetQuery}
+                    onChange={(e) => setTargetQuery(e.target.value)}
+                  />
                   <div className="grid-2">
                     {[
                       {
@@ -718,67 +727,75 @@ function SponsorView({ id }: { id?: string }) {
                     ].map((group) => (
                       <Card key={group.kind} title={group.label}>
                         {group.rows.length ? (
-                          group.rows.map((target) => {
-                            const chosen = draft[group.kind].includes(
-                              target.id,
-                            );
-                            return (
-                              <div
-                                key={target.id}
-                                style={{
-                                  display: "flex",
-                                  gap: 10,
-                                  alignItems: "center",
-                                  padding: "8px 0",
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                <label
-                                  style={{
-                                    display: "flex",
-                                    gap: 10,
-                                    alignItems: "center",
-                                    flex: 1,
-                                  }}
+                          group.rows
+                            .filter((target) =>
+                              target.draft.title
+                                .toLowerCase()
+                                .includes(targetQuery.toLowerCase()),
+                            )
+                            .map((target) => {
+                              const chosen = draft[group.kind].includes(
+                                target.id,
+                              );
+                              return (
+                                <div
+                                  key={target.id}
+                                  className="pv-target-choice"
                                 >
-                                  <input
-                                    type="checkbox"
-                                    checked={chosen}
-                                    disabled={
-                                      busy ||
-                                      !can("sponsors.manage") ||
-                                      (!chosen &&
-                                        (record?.status === "inactive" ||
-                                          target.status === "archived"))
-                                    }
-                                    onChange={() =>
-                                      change({
-                                        [group.kind]: chosen
-                                          ? draft[group.kind].filter(
-                                              (x) => x !== target.id,
-                                            )
-                                          : [...draft[group.kind], target.id],
-                                      })
-                                    }
-                                  />
-                                  <span>
-                                    {target.draft.title}{" "}
-                                    <small
-                                      style={{ color: "var(--text-muted)" }}
-                                    >
-                                      ({target.status})
-                                    </small>
-                                  </span>
-                                </label>
-                                <Link
-                                  to={group.url + target.id}
-                                  className="btn btn-sm"
-                                >
-                                  Open
-                                </Link>
-                              </div>
-                            );
-                          })
+                                  <label
+                                    style={{
+                                      display: "flex",
+                                      gap: 10,
+                                      alignItems: "center",
+                                      flex: 1,
+                                    }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={chosen}
+                                      disabled={
+                                        busy ||
+                                        !can("sponsors.manage") ||
+                                        (!chosen &&
+                                          (record?.status === "inactive" ||
+                                            target.status === "archived"))
+                                      }
+                                      onChange={() =>
+                                        change({
+                                          [group.kind]: chosen
+                                            ? draft[group.kind].filter(
+                                                (x) => x !== target.id,
+                                              )
+                                            : [...draft[group.kind], target.id],
+                                        })
+                                      }
+                                    />
+                                    <TargetArtwork
+                                      record={target}
+                                      kind={
+                                        group.kind === "showIds"
+                                          ? "show"
+                                          : "event"
+                                      }
+                                    />
+                                    <span>
+                                      {target.draft.title}{" "}
+                                      <small
+                                        style={{ color: "var(--text-muted)" }}
+                                      >
+                                        ({target.status})
+                                      </small>
+                                    </span>
+                                  </label>
+                                  <Link
+                                    to={group.url + target.id}
+                                    className="btn btn-sm"
+                                  >
+                                    Open
+                                  </Link>
+                                </div>
+                              );
+                            })
                         ) : (
                           <p>No {group.label.toLowerCase()} available.</p>
                         )}
@@ -796,19 +813,21 @@ function SponsorView({ id }: { id?: string }) {
           {!isNew && tab === "activity" && (
             <Card title="Activity history">
               {history.length ? (
-                history.map((h, i) => (
-                  <p key={i}>
-                    {h.action} · {new Date(h.created_at).toLocaleString()}{" "}
-                    {h.details?.reason ?? ""}
-                  </p>
-                ))
+                <PartnerHistory items={history} />
               ) : (
                 <p>No recorded activity yet.</p>
               )}
             </Card>
           )}
-          {!isNew && record && (
+          {!isNew && record && tab === "review" && (
             <Card title="Publication and lifecycle">
+              {dirty && (
+                <p className="pv-notice">
+                  Unsaved changes exist. Save or discard them before publication
+                  or lifecycle actions.
+                </p>
+              )}
+              <SponsorPreview record={record} draft={record.draft} />
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button
                   className="btn"

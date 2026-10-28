@@ -1,4 +1,6 @@
 const paths: Record<string, string> = {
+  brand: "M12 3 3 8l9 5 9-5-9-5ZM3 12l9 5 9-5M3 16l9 5 9-5",
+  campaign: "M3 9h5l12-5v16L8 15H3V9Zm5 6 2 6H6l-2-6",
   calendar: "M4 5h16v16H4zM8 3v4m8-4v4M4 10h16",
   pin: "M12 22s8-8 8-13a8 8 0 0 0-16 0c0 5 8 13 8 13Zm0-16a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
   ticket: "M3 5h18v5a2 2 0 0 0 0 4v5H3v-5a2 2 0 0 0 0-4V5Zm12 0v3m0 3v2m0 3v3",
