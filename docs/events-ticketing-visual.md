@@ -1,6 +1,6 @@
 # Events & ticketing admin visual workspace
 
-28 October 2026. Implemented and verified locally; stable admin preview not updated.
+28 October 2026. Implemented, verified locally and deployed to the stable disposable admin preview.
 
 ## Presentation
 
@@ -33,6 +33,13 @@ Existing event create/save, dirty navigation guard, media selection/upload, righ
 
 ## Boundaries
 
-No event, ticket settings, media, order or check-in mutation was committed. No new staff permissions were granted. Separate check-in-only/read-only staff browser sessions were not provisioned; their permission branches were reviewed in source. Successful check-in and its post-success summary-refresh error path were not exercised against real tickets; existing server behavior is retained. Private-art failure fallback, backend unavailable-record recovery and stale-version conflicts were reviewed but not forced during this browser sequence. Exhaustive assistive-technology and measured CLS acceptance remain release QA. Source is ready for a separate preview deployment.
+No event, ticket settings, media, order or check-in mutation was committed. No new staff permissions were granted. Separate check-in-only/read-only staff browser sessions were not provisioned; their permission branches were reviewed in source. Successful check-in and its post-success summary-refresh error path were not exercised against real tickets; existing server behavior is retained. Private-art failure fallback, backend unavailable-record recovery and stale-version conflicts were reviewed but not forced during this browser sequence. Exhaustive assistive-technology and measured CLS acceptance remain release QA. Preview deployment is complete; the next area remains deferred.
 
 DRM and production email remain pending. Stopped before Sponsors & Advertising.
+
+
+## Preview rollout
+
+Admin commit 8e1a11489c5668c57309ad902296270362f059b0 deployed READY as dpl_2fM8mHLW2zE4BXgADSKqm2sQ2KKD at https://mgtv-admin.vercel.app. Exact source SHA and stable alias verified. Previous rollback: d672a8088b251766545a35c83839299fab3474ee / dpl_DRN9UPkLr1SDNZVnhcPfqSBkZVuE. Vercel calls this stable disposable-preview address its Production target; business production remains pending. API and customer deployment unchanged.
+
+Hosted acceptance used the existing authorized staff MFA session: real private event artwork, initial 24 cards and 24→32 unique cursor continuation; title search and Kingston After Sunset saved overview; planned check-in/start/end schedule of 16:00/18:00/21:00 in America/Jamaica; Edit details and Review & operations; direct detail refresh. Ticketing displayed the existing one issued ticket, zero check-ins, fixed linked product, two option prices (JMD 4,500/2,500), Courtyard capacity 25 and General admission capacity 100 with one sold/99 available. Ticketing panels/options contained at 320/390/768/1440px (document widths 310/380/758/1430px) without panel overflow. Combined published/scheduled filter yielded fifteen matching records; Clear filters recovered the default grid. Browser error log was empty. No event, ticket setting, order, payment, permission, media or check-in mutation was submitted. Successful admission and financial operations were intentionally not repeated during this visual rollout. DRM and production email remain pending; stopped before Sponsors & Advertising.
