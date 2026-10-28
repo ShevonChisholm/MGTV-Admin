@@ -14,6 +14,14 @@ import { Card, TextField, SelectField, Modal, Badge, EmptyState } from "../ui";
 import { PageActions } from "../components/PageHeader";
 import { TIMEZONES, Note } from "../ui/ops";
 import StaffAuth from "./StaffAuth";
+import MediaIcon from "../components/MediaIcon";
+import { ContentStatus } from "../components/ContentVisual";
+import {
+  EventGrid,
+  EventsSkeleton,
+  EventOverview,
+  EventState,
+} from "../components/EventsVisual";
 const blank = {
   title: "",
   description: "",
@@ -83,6 +91,11 @@ function EventsView({ id }: { id?: string }) {
     [q, setQ] = useState(""),
     [status, setStatus] = useState(""),
     [lifecycle, setLifecycle] = useState(""),
+    [applied, setApplied] = useState({ q: "", status: "", lifecycle: "" }),
+    [filtersOpen, setFiltersOpen] = useState(false),
+    [pane, setPane] = useState<
+      "overview" | "edit" | "ticketing" | "operations"
+    >(isNew ? "edit" : "overview"),
     [busy, setBusy] = useState(false),
     [loaded, setLoaded] = useState(false),
     [error, setError] = useState(""),
@@ -116,14 +129,12 @@ function EventsView({ id }: { id?: string }) {
       setBusy(false);
     }
   }
-  function query(after?: string) {
+  function query(after?: string, filters = applied) {
     return (
       "?" +
       new URLSearchParams({
-        q,
-        status,
-        lifecycle,
-        limit: "25",
+        ...filters,
+        limit: "24",
         ...(after ? { cursor: after } : {}),
       })
     );
@@ -157,12 +168,13 @@ function EventsView({ id }: { id?: string }) {
     setLoaded(true);
   }
   useEffect(() => {
-    void run(load);
+    void run(load).finally(() => setLoaded(true));
   }, []);
-  async function refreshList() {
-    const page = await api("/admin/events" + query());
+  async function refreshList(filters = { q, status, lifecycle }) {
+    const page = await api("/admin/events" + query(undefined, filters));
     setItems(page.items);
     setCursor(page.nextCursor);
+    setApplied(filters);
   }
   async function save() {
     const body = JSON.stringify(draft);
@@ -238,7 +250,7 @@ function EventsView({ id }: { id?: string }) {
           ))}
           <button
             className="btn"
-            disabled={busy}
+            disabled={busy || dirty}
             onClick={() => void run(load)}
           >
             Reload from server
@@ -273,30 +285,134 @@ function EventsView({ id }: { id?: string }) {
         />
       </div>
     );
+  if (!loaded && !error)
+    return (
+      <div className="page-pad events-workspace">
+        {id ? (
+          <LoadingState label="Loading event details…" variant="form" />
+        ) : (
+          <EventsSkeleton />
+        )}
+      </div>
+    );
   if (!id)
     return (
       <div className="page-pad events-workspace">
         {controls}
-        <PageActions>
-          {can("events.write") && (
-            <Link to="/admin/events/new" className="btn btn-primary">
-              Create event
-            </Link>
-          )}
-        </PageActions>
-        <Card title="Find events">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
-              gap: 14,
+        <div className="ev-list-head">
+          <div>
+            <span className="cv-kicker">MGTV events</span>
+            <h2>Moments worth showing up for.</h2>
+            <p>Shape the event, its audience and the way people get in.</p>
+          </div>
+          <span className="ev-count">
+            {items.length} loaded{cursor ? " · more available" : ""}
+          </span>
+        </div>
+        <form
+          className="ev-search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!busy) void run(() => refreshList({ ...applied, q }));
+          }}
+        >
+          <TextField
+            label="Search events"
+            value={q}
+            maxLength={160}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <button className="btn" type="submit" disabled={busy}>
+            <MediaIcon name="search" size={16} /> Search
+          </button>
+          <button
+            className="btn"
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setStatus(applied.status);
+              setLifecycle(applied.lifecycle);
+              setFiltersOpen(true);
             }}
           >
-            <TextField
-              label="Search events"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
+            <MediaIcon name="filter" size={16} /> Filters
+            {applied.status || applied.lifecycle ? " · active" : ""}
+          </button>
+          {can("events.write") && (
+            <Link to="/admin/events/new" className="btn btn-primary">
+              <MediaIcon name="plus" size={16} /> Create event
+            </Link>
+          )}
+          {(applied.q || applied.status || applied.lifecycle) && (
+            <button
+              className="btn"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setQ("");
+                setStatus("");
+                setLifecycle("");
+                void run(() =>
+                  refreshList({ q: "", status: "", lifecycle: "" }),
+                );
+              }}
+            >
+              Clear filters
+            </button>
+          )}
+        </form>
+        {(applied.q || applied.status || applied.lifecycle) && (
+          <p className="ev-count">
+            {[
+              applied.q && `Title: ${applied.q}`,
+              applied.status && `Publication: ${applied.status}`,
+              applied.lifecycle && `Lifecycle: ${applied.lifecycle}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
+        {!loaded && !error ? <EventsSkeleton /> : <EventGrid items={items} />}
+        {loaded && !items.length && !error && (
+          <EmptyState
+            title="No events match"
+            body="Try another title or clear the filters."
+          />
+        )}
+        {filtersOpen && (
+          <Modal
+            title="Filter events"
+            onClose={() => {
+              if (!busy) setFiltersOpen(false);
+            }}
+            footer={
+              <>
+                <button
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => {
+                    setStatus(applied.status);
+                    setLifecycle(applied.lifecycle);
+                    setFiltersOpen(false);
+                  }}
+                >
+                  Back
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      await refreshList();
+                      setFiltersOpen(false);
+                    })
+                  }
+                >
+                  Apply filters
+                </button>
+              </>
+            }
+          >
             <SelectField
               label="Publication"
               value={status}
@@ -317,60 +433,12 @@ function EventsView({ id }: { id?: string }) {
               placeholder="All"
               onChange={(e) => setLifecycle(e.target.value)}
             />
-          </div>
-          <button
-            className="btn"
-            disabled={busy}
-            style={{ marginTop: 14 }}
-            onClick={() => void run(refreshList)}
-          >
-            Apply filters
-          </button>
-        </Card>
-        <div className="scroll-x">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Event</th>
-                <th>Starts</th>
-                <th>Format</th>
-                <th>Publication</th>
-                <th>Lifecycle</th>
-                <th>Broadcast</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((e) => (
-                <tr key={e.id}>
-                  <td>
-                    <Link to={"/admin/events/" + e.id}>{e.draft.title}</Link>
-                  </td>
-                  <td>
-                    {e.draft.startsAt
-                      ? new Intl.DateTimeFormat("en-JM", {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                          timeZone: e.draft.timezone,
-                        }).format(new Date(e.draft.startsAt))
-                      : "Not set"}
-                    <small style={{ display: "block" }}>
-                      {e.draft.timezone}
-                    </small>
-                  </td>
-                  <td>{e.draft.format.replace(/_/g, " ")}</td>
-                  <td>{e.status}</td>
-                  <td>{e.lifecycle}</td>
-                  <td>{e.broadcast.replace(/_/g, " ")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {loaded && !items.length && (
-          <EmptyState
-            title="No events match"
-            body="Clear the filters or create an event."
-          />
+            <p className="ev-muted">
+              Publication and event lifecycle are separate. These filters apply
+              to the saved event records.
+            </p>
+            {error && <p role="alert">{error}</p>}
+          </Modal>
         )}
         {cursor && (
           <button
@@ -405,406 +473,462 @@ function EventsView({ id }: { id?: string }) {
   return (
     <div className="page-pad events-workspace">
       {controls}
-      <Link to="/admin/events">← All events</Link>
-      <h2 style={{ margin: "16px 0", fontSize: 22 }}>
-        {isNew ? "Create event" : record.draft.title}
-      </h2>
-      <PageActions>
-        <span role="status">
-          {dirty ? "Unsaved changes" : "All changes saved"}
-        </span>
-        <button
-          className="btn"
-          disabled={!dirty || busy}
-          onClick={() => setDraft(record?.draft ?? blank)}
-        >
-          Discard
-        </button>
-        <button
-          className="btn btn-primary"
-          disabled={!can("events.write") || busy || !dirty || locked}
-          onClick={() => void run(save)}
-        >
-          {isNew ? "Save draft" : "Save details"}
-        </button>
-      </PageActions>
-      <div className="editor-layout">
-        <div>
-          <fieldset
-            disabled={!can("events.write") || busy || locked}
-            style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
+      <Link className="btn" to="/admin/events">
+        <MediaIcon name="back" size={16} /> All events
+      </Link>
+      {(isNew || pane !== "overview") && (
+        <h2 style={{ margin: "16px 0", fontSize: 22 }}>
+          {isNew ? "Create event" : record.draft.title}
+        </h2>
+      )}
+      {!isNew && (
+        <>
+          <div className="ev-pane-state">
+            <ContentStatus status={record.status} />
+            <EventState label="Event" value={record.lifecycle} />
+            <span>
+              {dirty
+                ? "Unsaved edits · overview shows saved details"
+                : "Saved version " + record.version}
+            </span>
+          </div>
+          <nav className="cv-detail-nav" aria-label="Event views">
+            {(
+              [
+                { id: "overview", label: "Overview", icon: "calendar" },
+                { id: "edit", label: "Edit details", icon: "edit" },
+                ...(can("ticketing.manage") || can("ticketing.checkin")
+                  ? [
+                      {
+                        id: "ticketing",
+                        label: "Tickets & admission",
+                        icon: "ticket",
+                      },
+                    ]
+                  : []),
+                {
+                  id: "operations",
+                  label: "Review & operations",
+                  icon: "review",
+                },
+              ] as const
+            ).map((v) => (
+              <button
+                key={v.id}
+                aria-pressed={pane === v.id}
+                onClick={() => setPane(v.id as typeof pane)}
+              >
+                <MediaIcon name={v.icon} size={17} />
+                {v.label}
+              </button>
+            ))}
+          </nav>
+          <div hidden={pane !== "overview"}>
+            <EventOverview
+              record={record}
+              tax={tax}
+              canEdit={can("events.write") && !locked}
+              onEdit={() => setPane("edit")}
+            />
+          </div>
+        </>
+      )}
+      {pane === "edit" && (
+        <PageActions>
+          <span role="status">
+            {dirty ? "Unsaved changes" : "All changes saved"}
+          </span>
+          <button
+            className="btn"
+            disabled={!dirty || busy}
+            onClick={() => setDraft(record?.draft ?? blank)}
           >
-            <Card title="Details">
-              <div style={{ display: "grid", gap: 14 }}>
+            Discard
+          </button>
+          <button
+            className="btn btn-primary"
+            disabled={!can("events.write") || busy || !dirty || locked}
+            onClick={() => void run(save)}
+          >
+            {isNew ? "Save draft" : "Save details"}
+          </button>
+        </PageActions>
+      )}
+      <div hidden={pane !== "edit"} className="ev-edit">
+        <fieldset
+          disabled={!can("events.write") || busy || locked}
+          style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
+        >
+          <Card title="Details">
+            <div style={{ display: "grid", gap: 14 }}>
+              <TextField
+                label="Title"
+                required
+                value={draft.title}
+                onChange={(e) => set("title", e.target.value)}
+              />
+              <TextField
+                label="Description"
+                multiline
+                rows={5}
+                value={draft.description}
+                onChange={(e) => set("description", e.target.value)}
+              />
+              <TextField
+                label="Featuring"
+                hint="Separate names with commas."
+                value={draft.performers.join(",")}
+                onChange={(e) => set("performers", e.target.value.split(","))}
+              />
+              <TextField
+                label="Registration link"
+                hint="Optional external destination; no transactions are processed here."
+                value={draft.registrationUrl}
+                onChange={(e) => set("registrationUrl", e.target.value)}
+              />
+            </div>
+          </Card>
+          <Card title="Where and when">
+            <div style={{ display: "grid", gap: 14 }}>
+              <SelectField
+                label="Format"
+                value={draft.format}
+                options={["in_person", "online", "hybrid"]}
+                onChange={(e) => set("format", e.target.value)}
+              />
+              {draft.format !== "online" && (
                 <TextField
-                  label="Title"
+                  label="Venue"
                   required
-                  value={draft.title}
-                  onChange={(e) => set("title", e.target.value)}
+                  value={draft.venue}
+                  onChange={(e) => set("venue", e.target.value)}
                 />
+              )}{" "}
+              {draft.format !== "in_person" && (
                 <TextField
-                  label="Description"
-                  multiline
-                  rows={5}
-                  value={draft.description}
-                  onChange={(e) => set("description", e.target.value)}
+                  label="Online event address"
+                  required
+                  value={draft.onlineUrl}
+                  onChange={(e) => set("onlineUrl", e.target.value)}
                 />
-                <TextField
-                  label="Featuring"
-                  hint="Separate names with commas."
-                  value={draft.performers.join(",")}
-                  onChange={(e) => set("performers", e.target.value.split(","))}
-                />
-                <TextField
-                  label="Registration link"
-                  hint="Optional external destination; no transactions are processed here."
-                  value={draft.registrationUrl}
-                  onChange={(e) => set("registrationUrl", e.target.value)}
-                />
-              </div>
-            </Card>
-            <Card title="Where and when">
-              <div style={{ display: "grid", gap: 14 }}>
-                <SelectField
-                  label="Format"
-                  value={draft.format}
-                  options={["in_person", "online", "hybrid"]}
-                  onChange={(e) => set("format", e.target.value)}
-                />
-                {draft.format !== "online" && (
-                  <TextField
-                    label="Venue"
-                    required
-                    value={draft.venue}
-                    onChange={(e) => set("venue", e.target.value)}
-                  />
-                )}{" "}
-                {draft.format !== "in_person" && (
-                  <TextField
-                    label="Online event address"
-                    required
-                    value={draft.onlineUrl}
-                    onChange={(e) => set("onlineUrl", e.target.value)}
-                  />
-                )}
-                <SelectField
-                  label="Timezone"
-                  value={draft.timezone}
-                  options={[
-                    ...new Set([
-                      "America/Jamaica",
-                      "UTC",
-                      ...TIMEZONES,
-                      draft.timezone,
-                    ]),
-                  ]}
-                  hint="Times below are entered in this timezone. Changing timezone preserves the actual instant."
-                  onChange={(e) => {
-                    if (e.target.value) set("timezone", e.target.value);
-                  }}
-                />
-                {(["startsAt", "endsAt"] as const).map((key) => (
-                  <TextField
-                    key={key}
-                    label={key === "startsAt" ? "Start" : "End"}
-                    type="datetime-local"
-                    value={localInput(draft[key], draft.timezone)}
-                    onChange={(e) => {
-                      try {
-                        set(key, localIso(e.target.value, draft.timezone));
-                        setError("");
-                      } catch (err) {
-                        setError((err as Error).message);
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-            </Card>
-            <Card title="Audience and access">
-              <div style={{ display: "grid", gap: 14 }}>
-                <label>
-                  Age classification
-                  <select
-                    className="input"
-                    value={draft.classificationId ?? ""}
-                    onChange={(e) =>
-                      set("classificationId", e.target.value || null)
-                    }
-                  >
-                    <option value="">Choose a classification</option>
-                    {tax.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <SelectField
-                  label="Replay access"
-                  value={draft.accessTier}
-                  options={["free", "premium"]}
-                  onChange={(e) => {
-                    setDraft((d) => ({
-                      ...d,
-                      accessTier: e.target.value,
-                      eligibleTierIds:
-                        e.target.value === "free" ? [] : d.eligibleTierIds,
-                    }));
-                  }}
-                />
-                {draft.accessTier === "premium" && (
-                  <fieldset
-                    style={{
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                    }}
-                  >
-                    <legend>Eligible tiers</legend>
-                    {tiers.map((t) => (
-                      <label
-                        key={t.id}
-                        style={{ display: "block", padding: 8 }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={draft.eligibleTierIds.includes(t.id)}
-                          onChange={(e) =>
-                            set(
-                              "eligibleTierIds",
-                              e.target.checked
-                                ? [...draft.eligibleTierIds, t.id]
-                                : draft.eligibleTierIds.filter(
-                                    (x) => x !== t.id,
-                                  ),
-                            )
-                          }
-                        />{" "}
-                        {t.name}
-                      </label>
-                    ))}
-                  </fieldset>
-                )}
-                <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                  Guest previews remain free. Full replay requires a customer
-                  profile, age access and an eligible tier when premium.
-                </p>
-              </div>
-            </Card>
-            <Card title="Artwork and media">
-              <div style={{ display: "grid", gap: 18 }}>
-                {(
-                  [
-                    ["portraitVersionId", "Portrait artwork", "image/*"],
-                    ["landscapeVersionId", "Landscape artwork", "image/*"],
-                    [
-                      "featureMediaVersionId",
-                      "Hero clip MP4 (up to 30 seconds, public)",
-                      "video/mp4",
-                    ],
-                    ["previewMediaVersionId", "Preview MP4", "video/mp4"],
-                    ["replayMediaVersionId", "Replay MP4", "video/mp4"],
-                  ] as const
-                ).map(([key, label, accept]) => (
-                  <MediaAttachment
-                    key={`${id}:${key}`}
-                    label={label}
-                    kind={accept === "video/mp4" ? "video" : "image"}
-                    value={draft[key]}
-                    canRead={!!can("media.read")}
-                    canUpload={!!can("media.upload")}
-                    onBusyChange={setBusy}
-                    maxDuration={
-                      key === "featureMediaVersionId" ? 30 : undefined
-                    }
-                    onChange={(v) => set(key, v)}
-                  />
-                ))}
-                <EventArtworkPreview record={record} draft={draft} />
-                <OriginalsSettings
-                  value={draft}
-                  onChange={(patch) => {
-                    setDraft((d) => ({ ...d, ...patch }));
-                  }}
-                  versions={[
-                    draft.featureMediaVersionId,
-                    draft.previewMediaVersionId,
-                    draft.replayMediaVersionId,
-                  ]}
-                  canRead={!!can("media.read")}
-                  canReview={!!can("media.upload") && !!can("content.publish")}
-                />
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={draft.rightsConfirmed}
-                    onChange={(e) => set("rightsConfirmed", e.target.checked)}
-                  />{" "}
-                  Rights for artwork, preview and replay are confirmed
-                </label>
-              </div>
-            </Card>
-          </fieldset>
-        </div>
-        <aside>
-          {record && (
-            <>
-              <LifecycleSettings
-                key={`${record.id}:${record.publishedRevisionId}`}
-                kind="event"
-                id={record.id}
-                revisionId={record.publishedRevisionId}
-                canPublish={!!can("events.publish")}
+              )}
+              <SelectField
+                label="Timezone"
+                value={draft.timezone}
+                options={[
+                  ...new Set([
+                    "America/Jamaica",
+                    "UTC",
+                    ...TIMEZONES,
+                    draft.timezone,
+                  ]),
+                ]}
+                hint="Times below are entered in this timezone. Changing timezone preserves the actual instant."
+                onChange={(e) => {
+                  if (e.target.value) set("timezone", e.target.value);
+                }}
               />
-              <EventTicketing
-                id={record.id}
-                manage={!!can("ticketing.manage")}
-                checkin={!!can("ticketing.checkin")}
-              />
-              <LinkedSponsors kind="events" id={record.id} />
-              <Card title="Publication">
-                <p>
-                  Publication: <Badge color="#C9A84C">{record.status}</Badge>
-                </p>
-                <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                  Draft changes remain private until published. Publishing
-                  requires an explicit permission.
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  <button
-                    className="btn"
-                    disabled={busy || dirty}
-                    onClick={() =>
-                      void run(async () => {
-                        const r = await api(
-                          "/admin/events/" + id + "/publication-check",
-                        );
-                        setIssues(r.issues);
-                        setNotice(
-                          r.issues.length
-                            ? "Review the requirements."
-                            : "Ready to publish.",
-                        );
-                      })
+              {(["startsAt", "endsAt"] as const).map((key) => (
+                <TextField
+                  key={key}
+                  label={key === "startsAt" ? "Start" : "End"}
+                  type="datetime-local"
+                  value={localInput(draft[key], draft.timezone)}
+                  onChange={(e) => {
+                    try {
+                      set(key, localIso(e.target.value, draft.timezone));
+                      setError("");
+                    } catch (err) {
+                      setError((err as Error).message);
                     }
-                  >
-                    Check requirements
-                  </button>
-                  <button
-                    className="btn btn-primary"
-                    disabled={!can("events.publish") || busy || dirty || locked}
-                    onClick={() => {
-                      setAction("publish");
-                      setReason("");
-                    }}
-                  >
-                    Publish event
-                  </button>
-                  {record.status === "published" && (
-                    <button
-                      className="btn"
-                      disabled={!can("events.unpublish") || busy || dirty}
-                      onClick={() => {
-                        setAction("unpublish");
-                        setReason("");
-                      }}
-                    >
-                      Unpublish
-                    </button>
-                  )}
-                  <button
-                    className="btn"
-                    disabled={!can("events.write") || busy || dirty}
-                    onClick={() => {
-                      setAction(locked ? "restore" : "archive");
-                      setReason("");
-                    }}
-                  >
-                    {locked ? "Restore to draft" : "Archive"}
-                  </button>
-                </div>
-                {issues.map((i, n) => (
-                  <p key={n} style={{ fontSize: 13, color: "var(--red)" }}>
-                    {i.path}: {i.message}
-                  </p>
-                ))}
-              </Card>
-              <Card title="Event lifecycle">
-                <p style={{ textTransform: "capitalize" }}>
-                  {record.lifecycle}
-                </p>
-                {record.previousStart && (
-                  <p>
-                    Originally {new Date(record.previousStart).toISOString()}
-                  </p>
-                )}
-                {record.statusReason && <p>{record.statusReason}</p>}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {(record.lifecycle === "postponed"
-                    ? ["confirm", "postpone", "cancel"]
-                    : record.lifecycle === "scheduled"
-                      ? ["postpone", "cancel", "complete"]
-                      : []
-                  ).map((a) => (
-                    <button
-                      className="btn"
-                      key={a}
-                      disabled={
-                        !can("events.publish") ||
-                        busy ||
-                        dirty ||
-                        record.status !== "published"
-                      }
-                      onClick={() => {
-                        setAction(a);
-                        setReason("");
-                        setNewStart(localInput(draft.startsAt, draft.timezone));
-                        setNewEnd(localInput(draft.endsAt, draft.timezone));
-                      }}
-                    >
-                      {a === "confirm"
-                        ? "Confirm new date"
-                        : a === "complete"
-                          ? "Mark completed"
-                          : a === "cancel"
-                            ? "Cancel event"
-                            : "Postpone"}
-                    </button>
+                  }}
+                />
+              ))}
+            </div>
+          </Card>
+          <Card title="Audience and access">
+            <div style={{ display: "grid", gap: 14 }}>
+              <label>
+                Age classification
+                <select
+                  className="input"
+                  value={draft.classificationId ?? ""}
+                  onChange={(e) =>
+                    set("classificationId", e.target.value || null)
+                  }
+                >
+                  <option value="">Choose a classification</option>
+                  {tax.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
                   ))}
-                </div>
-              </Card>
-              <Card title="Broadcast and replay">
-                <p>{record.broadcast.replace(/_/g, " ")}</p>
-                <Note tone="info">
-                  Live broadcasting requires a verified delivery provider.
-                  Scheduling an event never starts a stream. A published replay
-                  becomes available only after the event is completed.
-                </Note>
-              </Card>
-              <Card title="Activity history">
-                {history.length === 0 ? (
-                  <p>No changes yet.</p>
-                ) : (
-                  history.map((h, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        borderBottom: "1px solid var(--border)",
-                        padding: "10px 0",
-                        fontSize: 12,
-                      }}
-                    >
-                      <strong>{h.action}</strong>
-                      <p>{new Date(h.created_at).toLocaleString()}</p>
-                      {h.details?.reason && <p>{h.details.reason}</p>}
-                    </div>
-                  ))
-                )}
-              </Card>
-            </>
-          )}
-        </aside>
+                </select>
+              </label>
+              <SelectField
+                label="Replay access"
+                value={draft.accessTier}
+                options={["free", "premium"]}
+                onChange={(e) => {
+                  setDraft((d) => ({
+                    ...d,
+                    accessTier: e.target.value,
+                    eligibleTierIds:
+                      e.target.value === "free" ? [] : d.eligibleTierIds,
+                  }));
+                }}
+              />
+              {draft.accessTier === "premium" && (
+                <fieldset
+                  style={{
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                  }}
+                >
+                  <legend>Eligible tiers</legend>
+                  {tiers.map((t) => (
+                    <label key={t.id} style={{ display: "block", padding: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={draft.eligibleTierIds.includes(t.id)}
+                        onChange={(e) =>
+                          set(
+                            "eligibleTierIds",
+                            e.target.checked
+                              ? [...draft.eligibleTierIds, t.id]
+                              : draft.eligibleTierIds.filter((x) => x !== t.id),
+                          )
+                        }
+                      />{" "}
+                      {t.name}
+                    </label>
+                  ))}
+                </fieldset>
+              )}
+              <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                Guest previews remain free. Full replay requires a customer
+                profile, age access and an eligible tier when premium.
+              </p>
+            </div>
+          </Card>
+          <Card title="Artwork and media">
+            <div style={{ display: "grid", gap: 18 }}>
+              {(
+                [
+                  ["portraitVersionId", "Portrait artwork", "image/*"],
+                  ["landscapeVersionId", "Landscape artwork", "image/*"],
+                  [
+                    "featureMediaVersionId",
+                    "Hero clip MP4 (up to 30 seconds, public)",
+                    "video/mp4",
+                  ],
+                  ["previewMediaVersionId", "Preview MP4", "video/mp4"],
+                  ["replayMediaVersionId", "Replay MP4", "video/mp4"],
+                ] as const
+              ).map(([key, label, accept]) => (
+                <MediaAttachment
+                  key={`${id}:${key}`}
+                  label={label}
+                  kind={accept === "video/mp4" ? "video" : "image"}
+                  value={draft[key]}
+                  canRead={!!can("media.read")}
+                  canUpload={!!can("media.upload")}
+                  onBusyChange={setBusy}
+                  maxDuration={key === "featureMediaVersionId" ? 30 : undefined}
+                  onChange={(v) => set(key, v)}
+                />
+              ))}
+              <EventArtworkPreview record={record} draft={draft} />
+              <OriginalsSettings
+                value={draft}
+                onChange={(patch) => {
+                  setDraft((d) => ({ ...d, ...patch }));
+                }}
+                versions={[
+                  draft.featureMediaVersionId,
+                  draft.previewMediaVersionId,
+                  draft.replayMediaVersionId,
+                ]}
+                canRead={!!can("media.read")}
+                canReview={!!can("media.upload") && !!can("content.publish")}
+              />
+              <label>
+                <input
+                  type="checkbox"
+                  checked={draft.rightsConfirmed}
+                  onChange={(e) => set("rightsConfirmed", e.target.checked)}
+                />{" "}
+                Rights for artwork, preview and replay are confirmed
+              </label>
+            </div>
+          </Card>
+        </fieldset>
       </div>
+      {record && (
+        <div hidden={pane !== "ticketing"}>
+          <EventTicketing
+            id={record.id}
+            manage={!!can("ticketing.manage")}
+            checkin={!!can("ticketing.checkin")}
+            commerceRead={!!can("commerce.read")}
+            record={record}
+          />
+        </div>
+      )}
+      <aside hidden={pane !== "operations"} className="ev-operations">
+        {record && (
+          <>
+            <LifecycleSettings
+              key={`${record.id}:${record.publishedRevisionId}`}
+              kind="event"
+              id={record.id}
+              revisionId={record.publishedRevisionId}
+              canPublish={!!can("events.publish")}
+            />
+
+            <LinkedSponsors kind="events" id={record.id} />
+            <Card title="Publication">
+              {dirty && (
+                <p className="ev-notice">
+                  Unsaved event details exist. Save or discard them before
+                  making an event decision.
+                </p>
+              )}
+              <p>
+                Publication: <Badge color="#C9A84C">{record.status}</Badge>
+              </p>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                Draft changes remain private until published. Publishing
+                requires an explicit permission.
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <button
+                  className="btn"
+                  disabled={busy || dirty}
+                  onClick={() =>
+                    void run(async () => {
+                      const r = await api(
+                        "/admin/events/" + id + "/publication-check",
+                      );
+                      setIssues(r.issues);
+                      setNotice(
+                        r.issues.length
+                          ? "Review the requirements."
+                          : "Ready to publish.",
+                      );
+                    })
+                  }
+                >
+                  Check requirements
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={!can("events.publish") || busy || dirty || locked}
+                  onClick={() => {
+                    setAction("publish");
+                    setReason("");
+                  }}
+                >
+                  Publish event
+                </button>
+                {record.status === "published" && (
+                  <button
+                    className="btn"
+                    disabled={!can("events.unpublish") || busy || dirty}
+                    onClick={() => {
+                      setAction("unpublish");
+                      setReason("");
+                    }}
+                  >
+                    Unpublish
+                  </button>
+                )}
+                <button
+                  className="btn"
+                  disabled={!can("events.write") || busy || dirty}
+                  onClick={() => {
+                    setAction(locked ? "restore" : "archive");
+                    setReason("");
+                  }}
+                >
+                  {locked ? "Restore to draft" : "Archive"}
+                </button>
+              </div>
+              {issues.map((i, n) => (
+                <p key={n} style={{ fontSize: 13, color: "var(--red)" }}>
+                  {i.path}: {i.message}
+                </p>
+              ))}
+            </Card>
+            <Card title="Event lifecycle">
+              <p style={{ textTransform: "capitalize" }}>{record.lifecycle}</p>
+              {record.previousStart && (
+                <p>Originally {new Date(record.previousStart).toISOString()}</p>
+              )}
+              {record.statusReason && <p>{record.statusReason}</p>}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {(record.lifecycle === "postponed"
+                  ? ["confirm", "postpone", "cancel"]
+                  : record.lifecycle === "scheduled"
+                    ? ["postpone", "cancel", "complete"]
+                    : []
+                ).map((a) => (
+                  <button
+                    className="btn"
+                    key={a}
+                    disabled={
+                      !can("events.publish") ||
+                      busy ||
+                      dirty ||
+                      record.status !== "published"
+                    }
+                    onClick={() => {
+                      setAction(a);
+                      setReason("");
+                      setNewStart(localInput(draft.startsAt, draft.timezone));
+                      setNewEnd(localInput(draft.endsAt, draft.timezone));
+                    }}
+                  >
+                    {a === "confirm"
+                      ? "Confirm new date"
+                      : a === "complete"
+                        ? "Mark completed"
+                        : a === "cancel"
+                          ? "Cancel event"
+                          : "Postpone"}
+                  </button>
+                ))}
+              </div>
+            </Card>
+            <Card title="Broadcast and replay">
+              <p>{record.broadcast.replace(/_/g, " ")}</p>
+              <Note tone="info">
+                Live broadcasting requires a verified delivery provider.
+                Scheduling an event never starts a stream. A published replay
+                becomes available only after the event is completed.
+              </Note>
+            </Card>
+            <Card title="Activity history">
+              {history.length === 0 ? (
+                <p>No changes yet.</p>
+              ) : (
+                <ol className="ev-history">
+                  {history.map((h, i) => (
+                    <li key={h.id ?? i}>
+                      <MediaIcon name="clock" size={18} />
+                      <div>
+                        <strong>{h.action.replace(/[._]/g, " ")}</strong>
+                        <p>{new Date(h.created_at).toLocaleString()}</p>
+                        {h.details?.reason && <p>{h.details.reason}</p>}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Card>
+          </>
+        )}
+      </aside>
       {action && (
         <Modal
           title={

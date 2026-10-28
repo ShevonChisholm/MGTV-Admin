@@ -1,4 +1,10 @@
 const paths: Record<string, string> = {
+  calendar: "M4 5h16v16H4zM8 3v4m8-4v4M4 10h16",
+  pin: "M12 22s8-8 8-13a8 8 0 0 0-16 0c0 5 8 13 8 13Zm0-16a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
+  ticket: "M3 5h18v5a2 2 0 0 0 0 4v5H3v-5a2 2 0 0 0 0-4V5Zm12 0v3m0 3v2m0 3v3",
+  scan: "M3 8V3h5m8 0h5v5M3 16v5h5m8 0h5v-5M8 8h3v3H8zm5 5h3v3h-3zM8 15h2m5-7h1",
+  users:
+    "M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM5 21v-3a7 7 0 0 1 14 0v3M19 5a3 3 0 0 1 0 6m1 3a5 5 0 0 1 3 5",
   artist: "M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a8 8 0 0 1 16 0v2",
   album:
     "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",

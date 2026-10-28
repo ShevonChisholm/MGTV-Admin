@@ -23,7 +23,15 @@ function Frame({
       >
         {version && saved && !failed ? (
           <img
-            src={"/api/v1/admin/events/" + record.id + "/artwork/" + slot}
+            src={
+              "/api/v1/admin/events/" +
+              record.id +
+              "/artwork/" +
+              slot +
+              "?v=" +
+              record.version
+            }
+            referrerPolicy="same-origin"
             alt={draft.title + " · " + slot + " artwork preview"}
             className="h-full w-full object-cover"
             onError={() => setFailed(true)}
