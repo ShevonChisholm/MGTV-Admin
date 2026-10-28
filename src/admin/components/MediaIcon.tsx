@@ -1,4 +1,17 @@
 const paths: Record<string, string> = {
+  plus: "M12 4v16M4 12h16",
+  film: "M3 3h18v18H3zM3 8h18M3 16h18M8 3v5M16 3v5M8 16v5M16 16v5",
+  series: "M3 7h18v14H3zM6 3h12M5 5h14m-5 5 4 4-4 4",
+  sport:
+    "M8 3h8v7a4 4 0 0 1-8 0V3Zm0 2H3v4a4 4 0 0 0 5 4m8-8h5v4a4 4 0 0 1-5 4m-4 1v6m-5 1h10",
+  edit: "m15 3 6 6-12 12H3v-6L15 3Zm-3 3 6 6",
+  review: "M7 4h14v17H7V4ZM3 8h4M3 13h4M3 18h4m8-10-3 3-2-2",
+  lock: "M5 10h14v11H5zM8 10V6a4 4 0 0 1 8 0v4",
+  globe:
+    "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18",
+  archive: "M3 4h18v5H3zM5 9v12h14V9M9 13h6",
+  minus: "M5 12h14",
+
   image: "M3 3h18v18H3zM3 16l6-6 6 6 3-3 3 3M16 7h.01",
   video: "M3 5h13v14H3zM16 10l5-3v10l-5-3",
   audio:

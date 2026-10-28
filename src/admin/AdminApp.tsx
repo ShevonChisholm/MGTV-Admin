@@ -270,15 +270,16 @@ function Shell() {
   if (connected && page === "sponsors") header={breadcrumb:[{label:"Portal"},{label:"Sponsors",to:"/admin/sponsors"}],title:route.parts[0]?"Sponsor organization":"Sponsors",description:"Manage sponsor organizations, private contacts, approved branding and show/event associations."};
   if (connected && page === "awards") header={breadcrumb:[{label:"Portal"},{label:"Awards & Voting",to:"/admin/awards"}],title:route.parts[0]?"Award program":"Awards & Voting",description:"Celebrate Caribbean excellence with verified nominees, one final account vote per category and reviewed results."};
   if (connected && page === "events") header={breadcrumb:[{label:"Portal"},{label:"Events",to:"/admin/events"}],title:route.parts[0]?"Event editor":"Events",description:"Prepare event details and media. Publication, event lifecycle and broadcast availability are separate."};
-  if (connected && page === "content" && ["music","music-videos","audio"].includes(route.parts[0])) header={breadcrumb:[{label:"Portal"},{label:"Music",to:"/admin/content/music-videos"}],title:route.parts[1]?"Music editor":route.parts[0] === "audio"?"Audio tracks":"Music videos",description:"Publish verified music videos and MP3 tracks with saved revisions and explicit permissions."};
-  if (connected && page === "content" && route.parts[0] === "sports") header={breadcrumb:[{label:"Portal"},{label:"Sports",to:"/admin/content/sports"}],title:route.parts[1]?"Sports editor":"Sports",description:"Prepare sporting highlights and replays, review saved revisions and publish with explicit permissions."};
+  if(connected&&page==="content") { const section=route.parts[0]||"shows"; const label=section==="movies"?"Movies":section==="audio"?"Audio tracks":section==="sports"?"Sports":section==="music-videos"||section==="music"?"Music videos":"Shows"; header={breadcrumb:[{label:"Portal"},{label:"Content Library",to:"/admin/content"},{label,to:"/admin/content/"+section}],title:route.parts[1]?"Content workspace":"Content Library",description:"Explore artwork, shape saved drafts and review publication. Your changes are stored securely by the API."}; }
+  if (connected && page === "content" && ["music","music-videos","audio"].includes(route.parts[0])) header={breadcrumb:[{label:"Portal"},{label:"Music",to:"/admin/content/music-videos"}],title:route.parts[1]?"Music workspace":route.parts[0] === "audio"?"Audio tracks":"Music videos",description:"Publish verified music videos and MP3 tracks with saved revisions and explicit permissions."};
+  if (connected && page === "content" && route.parts[0] === "sports") header={breadcrumb:[{label:"Portal"},{label:"Sports",to:"/admin/content/sports"}],title:route.parts[1]?"Sports workspace":"Sports",description:"Prepare sporting highlights and replays, review saved revisions and publish with explicit permissions."};
   if (connected && page === "content" && route.parts[0] === "movies")
     header = {
       breadcrumb: [
         { label: "Portal" },
         { label: "Movies", to: "/admin/content/movies" },
       ],
-      title: route.parts[1] ? "Movie editor" : "Movies",
+      title: route.parts[1] ? "Movie workspace" : "Movies",
       description:
         "Create drafts, prepare media and publish with your assigned permissions.",
     };
@@ -292,7 +293,7 @@ function Shell() {
         { label: "Portal" },
         { label: "Shows", to: "/admin/content/shows" },
       ],
-      title: route.parts[1] ? "Series editor" : "Shows",
+      title: route.parts[1] ? "Series workspace" : "Shows",
       description:
         "Manage shows, seasons and episodes with saved revisions and explicit publication permissions.",
     };

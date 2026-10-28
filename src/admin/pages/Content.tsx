@@ -385,7 +385,7 @@ export default function Content() {
   if (connected && ["music", "music-videos", "audio"].includes(tab ?? ""))
     return (
       <ConnectedEditorial
-        key={id ?? "list"}
+        key={`music:${tab === "audio" ? "track" : "video"}:${id ?? "list"}`}
         id={id}
         entity="music"
         musicKind={tab === "audio" ? "track" : "music-video"}
@@ -395,9 +395,8 @@ export default function Content() {
       />
     );
   if (connected && tab === "movies")
-    return <ConnectedMovies key={id ?? "list"} id={id} />;
-  if (connected && tab === "sports") return <ConnectedEditorial key={id??"list"} id={id} entity="sports" basePath="/admin/content/sports"/>;
-  if (connected && tab === "sports") return <ConnectedEditorial key={id??"list"} id={id} entity="sports" basePath="/admin/content/sports"/>;
+    return <ConnectedMovies key={`movies:${id ?? "list"}`} id={id} />;
+  if (connected && tab === "sports") return <ConnectedEditorial key={`sports:${id??"list"}`} id={id} entity="sports" basePath="/admin/content/sports"/>;
   if (!tab) return <List tab="shows" />;
   if (!id) return <List tab={tab} />;
   const type = typeFromTab(tab);

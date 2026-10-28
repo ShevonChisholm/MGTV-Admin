@@ -1,10 +1,19 @@
-import LoadingState from "../components/LoadingState";
+import { ContentGrid, ContentGridSkeleton } from "../components/ContentVisual";
+import MediaIcon from "../components/MediaIcon";
 import React, { useEffect, useState } from "react";
 import { useRouter, Link } from "../router";
 import { api } from "../api/client";
-import { Card, Badge } from "../ui";
+import { Card } from "../ui";
 import ConnectedEditorial from "./ConnectedEditorial";
-function Children({ record, path }: { record: any; path: string }) {
+function Children({
+  record,
+  path,
+  canWrite,
+}: {
+  record: any;
+  path: string;
+  canWrite: boolean;
+}) {
   const child = record.kind === "show" ? "seasons" : "episodes";
   const [items, setItems] = useState<any[]>([]),
     [error, setError] = useState(""),
@@ -43,12 +52,13 @@ function Children({ record, path }: { record: any; path: string }) {
           its published descendants. Numbers are unique within this parent and
           stay fixed.
         </p>
-        <Link className="btn btn-primary" to={path + "/" + child + "/new"}>
-          Add {child === "seasons" ? "season" : "episode"}
-        </Link>
-        {loading && (
-          <LoadingState label={<>Loading {child}…</>} variant="table" />
+        {canWrite && (
+          <Link className="btn btn-primary" to={path + "/" + child + "/new"}>
+            <MediaIcon name="plus" size={16} /> Add{" "}
+            {child === "seasons" ? "season" : "episode"}
+          </Link>
         )}
+        {loading && <ContentGridSkeleton />}
         {error && (
           <div role="alert">
             {error}{" "}
@@ -60,46 +70,13 @@ function Children({ record, path }: { record: any; path: string }) {
         {!loading && !error && !items.length && (
           <p style={{ marginTop: 16 }}>No {child} yet.</p>
         )}
-        <div className="scroll-x">
-          <table
-            className="table"
-            aria-label={child === "seasons" ? "Seasons" : "Episodes"}
-          >
-            <thead>
-              <tr>
-                <th>Number</th>
-                <th>Title</th>
-                <th>Status</th>
-                <th>Manage</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.number}</td>
-                  <td>{item.draft.title}</td>
-                  <td>
-                    <Badge
-                      color={
-                        item.status === "published" ? "#34d399" : "#fbbf24"
-                      }
-                    >
-                      {item.status}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Link
-                      className="btn"
-                      to={path + "/" + child + "/" + item.id}
-                    >
-                      Open {item.kind}
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {!loading && !error && !!items.length && (
+          <ContentGrid
+            items={items}
+            entity={child}
+            basePath={path + "/" + child}
+          />
+        )}
       </Card>
     </div>
   );
@@ -135,9 +112,13 @@ export default function ConnectedShows() {
         basePath={basePath}
         parentId={parent}
         listPath={returnPath}
-        childrenFor={(record) =>
+        childrenFor={(record, canWrite) =>
           entity === "episodes" ? null : (
-            <Children record={record} path={basePath + "/" + record.id} />
+            <Children
+              record={record}
+              path={basePath + "/" + record.id}
+              canWrite={canWrite}
+            />
           )
         }
       />

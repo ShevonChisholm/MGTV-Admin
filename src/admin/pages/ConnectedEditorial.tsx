@@ -1,10 +1,17 @@
-import OriginalsSettings, {type OriginFields} from "../components/OriginalsSettings";
+import {
+  CONTENT_TYPES,
+  ContentGrid,
+  ContentGridSkeleton,
+  ContentOverview,
+} from "../components/ContentVisual";
+import MediaIcon from "../components/MediaIcon";
+import OriginalsSettings, {
+  type OriginFields,
+} from "../components/OriginalsSettings";
 import LifecycleSettings from "../components/LifecycleSettings";
 import MediaAttachment from "../components/MediaAttachment";
-import LoadingState from "../components/LoadingState";
 import { LinkedSponsors } from "../components/LinkedSponsors";
-import { Card, Tabs, Badge, ConfirmDialog } from "../ui";
-import { TYPE_META, TYPE_ORDER } from "../store/meta";
+import { Card, Badge, ConfirmDialog } from "../ui";
 import StaffAuth from "./StaffAuth";
 import React, { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
@@ -86,7 +93,7 @@ export default function ConnectedEditorial({
   basePath?: string;
   parentId?: string;
   listPath?: string;
-  childrenFor?: (record: any) => React.ReactNode;
+  childrenFor?: (record: any, canWrite: boolean) => React.ReactNode;
 }) {
   const resource = ["seasons", "episodes"].includes(entity) ? "shows" : entity;
   const label =
@@ -100,6 +107,10 @@ export default function ConnectedEditorial({
       entity === "movies" ||
       entity === "episodes" ||
       entity === "music";
+  const [panel, setPanel] = useState<"overview" | "edit" | "publish">(
+    id === "new" ? "edit" : "overview",
+  );
+  const appliedFilters = useRef({ q: "", status: "" });
   const [number, setNumber] = useState(1);
   const [initializing, setInitializing] = useState(true);
   const apiBase = "/admin/" + entity;
@@ -178,16 +189,26 @@ export default function ConnectedEditorial({
     setSession(s);
     if (!s.permissions.includes(`${resource}.read`))
       throw Error("You need content.read to view these records.");
+    const referenceData = await api(
+      entity === "sports"
+        ? "/admin/sports/taxonomy"
+        : entity === "music"
+          ? "/admin/music/taxonomy"
+          : resource === "shows"
+            ? "/admin/shows/taxonomy"
+            : "/admin/taxonomy",
+    );
     setTax(
-      await api(
-        entity === "sports"
-          ? "/admin/sports/taxonomy"
-          : entity === "music"
-            ? "/admin/music/taxonomy"
-            : resource === "shows"
-              ? "/admin/shows/taxonomy"
-              : "/admin/taxonomy",
-      ),
+      Array.isArray(referenceData)
+        ? {
+            genres: referenceData.filter(
+              (r) => r.kind === "genre" && r.active !== false,
+            ),
+            classifications: referenceData.filter(
+              (r) => r.kind === "classification" && r.active !== false,
+            ),
+          }
+        : referenceData,
     );
     const tierResponse = await fetch("/api/v1/catalog/subscription-tiers");
     if (!tierResponse.ok)
@@ -207,6 +228,7 @@ export default function ConnectedEditorial({
             ...(status ? { status } : {}),
           }),
       );
+      appliedFilters.current = { q, status };
       setItems(list.items);
       setCursor(list.nextCursor);
     } else {
@@ -372,15 +394,24 @@ export default function ConnectedEditorial({
     });
   if (initializing)
     return (
-      <div className="page-pad">
-        <LoadingState
-          label="Loading content workspace…"
-          variant={id ? "form" : "table"}
-        />
+      <div className="page-pad content-visual" aria-busy="true">
+        <div className="cv-loading-context" role="status">
+          Loading content workspace…
+        </div>
+        {id ? (
+          <>
+            <div className="cv-feature cv-skeleton">
+              <div className="cv-art" style={{ height: 380 }} />
+            </div>
+            <ContentGridSkeleton />
+          </>
+        ) : (
+          <ContentGridSkeleton entity={entity} />
+        )}
       </div>
     );
   return (
-    <div className="page-pad movie-workspace">
+    <div className="page-pad movie-workspace content-visual">
       <div ref={errorRef} tabIndex={-1} role={error ? "alert" : undefined}>
         {error && (
           <div
@@ -455,52 +486,51 @@ export default function ConnectedEditorial({
           </div>
           {!id ? (
             <>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: 16,
-                }}
-              >
-                <h2>
-                  {entity === "sports"
-                    ? "Sports"
-                    : entity === "music"
-                      ? "Music"
+              <div className="cv-library-head">
+                <div>
+                  <span className="cv-kicker">THE MGTV CONTENT ROOM</span>
+                  <h2>
+                    {entity === "music"
+                      ? musicKind === "track"
+                        ? "Audio tracks"
+                        : "Music videos"
                       : entity === "movies"
                         ? "Movies"
-                        : "Shows"}
-                </h2>
+                        : entity === "sports"
+                          ? "Sports"
+                          : "Shows"}
+                  </h2>
+                  <p>
+                    Find the story by its artwork. Open a record to explore its
+                    saved draft, media and publication.
+                  </p>
+                </div>
                 {can(`${resource}.write`) && (
                   <Link className="btn btn-primary" to={basePath + "/new"}>
-                    Add {label}
+                    <MediaIcon name="plus" size={18} /> Add {label}
                   </Link>
                 )}
               </div>
-              <div className="scroll-x">
-                <Tabs
-                  label="Content types"
-                  value={
-                    entity === "sports"
-                      ? "sports"
-                      : entity === "music"
+              <nav className="cv-type-nav" aria-label="Content types">
+                {CONTENT_TYPES.map((t) => (
+                  <Link
+                    key={t.id}
+                    to={"/admin/content/" + t.id}
+                    aria-current={
+                      (entity === "music"
                         ? musicKind === "track"
                           ? "audio"
                           : "music-videos"
-                        : entity === "movies"
-                          ? "movies"
-                          : "shows"
-                  }
-                  onChange={(tab) => navigate("/admin/content/" + tab)}
-                  items={[
-                    ...TYPE_ORDER.map((type) => ({
-                      id: TYPE_META[type].tab,
-                      label: TYPE_META[type].plural,
-                    })),
-                    { id: "sports", label: "Sports" },
-                  ]}
-                />
-              </div>
+                        : entity) === t.id
+                        ? "page"
+                        : undefined
+                    }
+                  >
+                    <MediaIcon name={t.icon} size={18} />
+                    {t.label}
+                  </Link>
+                ))}
+              </nav>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -547,95 +577,27 @@ export default function ConnectedEditorial({
                   Apply filters
                 </button>
               </form>
-              {busy && !items.length && (
-                <LoadingState label={<>Loading content…</>} variant="table" />
-              )}
+              {busy && !items.length && <ContentGridSkeleton entity={entity} />}
               {!busy && !error && !items.length && (
-                <Card title="No records in this view">
+                <Card title="No stories in this view">
                   <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                    Try another filter, or add a record to begin.
+                    Try another title or status, or add a record to begin.
                   </p>
                 </Card>
               )}
               {!!items.length && (
-                <div className="scroll-x">
-                  <table className="tbl">
-                    <caption className="sr-only">Content library</caption>
-                    <thead>
-                      <tr>
-                        <th>Title</th>
-                        <th>Status</th>
-                        <th>Access</th>
-                        <th>Updated</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((m) => (
-                        <tr key={m.id}>
-                          <td>
-                            <Link
-                              to={basePath + "/" + m.id}
-                              style={{
-                                display: "flex",
-                                gap: 12,
-                                alignItems: "center",
-                                color: "var(--text-primary)",
-                                textDecoration: "none",
-                              }}
-                            >
-                              {m.draft.artwork.portraitVersionId && (
-                                <img
-                                  src={
-                                    "/api/v1" +
-                                    apiBase +
-                                    "/" +
-                                    m.id +
-                                    "/artwork/portrait"
-                                  }
-                                  alt=""
-                                  style={{
-                                    width: 40,
-                                    height: 56,
-                                    objectFit: "cover",
-                                    borderRadius: 5,
-                                  }}
-                                />
-                              )}
-                              <strong>{m.draft.title}</strong>
-                            </Link>
-                          </td>
-                          <td>
-                            <Badge
-                              color={
-                                m.status === "published"
-                                  ? "#34d399"
-                                  : m.status === "draft"
-                                    ? "#fbbf24"
-                                    : "#8f95a3"
-                              }
-                            >
-                              {m.status}
-                            </Badge>
-                          </td>
-                          <td>
-                            {m.draft.accessTier === "premium"
-                              ? "Premium"
-                              : "Free"}
-                          </td>
-                          <td style={{ whiteSpace: "nowrap" }}>
-                            {new Date(m.updatedAt).toLocaleDateString()}
-                          </td>
-                          <td>
-                            <Link className="btn" to={basePath + "/" + m.id}>
-                              Edit {label}
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <p className="cv-context">
+                    <MediaIcon name="grid" size={16} />
+                    {items.length} loaded records{busy ? " · Updating…" : ""}.
+                    Open a card to manage its draft.
+                  </p>
+                  <ContentGrid
+                    items={items}
+                    entity={entity}
+                    basePath={basePath}
+                  />
+                </>
               )}
               {cursor && (
                 <button
@@ -647,8 +609,11 @@ export default function ConnectedEditorial({
                         apiBase +
                           "?" +
                           new URLSearchParams({
-                            q,
-                            ...(status ? { status } : {}),
+                            q: appliedFilters.current.q,
+                            ...(appliedFilters.current.status
+                              ? { status: appliedFilters.current.status }
+                              : {}),
+                            ...(musicKind ? { musicKind } : {}),
                             cursor,
                           }),
                       );
@@ -673,27 +638,114 @@ export default function ConnectedEditorial({
               >
                 ← Back to library
               </button>
-              <h2 style={{ margin: "20px 0" }}>
-                {record ? draft.title : `New ${label}`}
-                {record?.number ? ` · ${label} ${record.number}` : ""}{" "}
-                {record && (
-                  <small style={{ color: "var(--text-secondary)" }}>
-                    · {record.status}
-                  </small>
-                )}
-              </h2>
-              <Card title="Create with confidence">
-                <nav aria-label="Creation steps" style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-                  <button type="button" className="btn btn-sm" onClick={()=>document.getElementById("entity-details")?.scrollIntoView()}>01 · Details & access</button>
-                  {entity!=="seasons"&&<button type="button" className="btn btn-sm" onClick={()=>document.getElementById("entity-media")?.scrollIntoView()}>02 · Media</button>}
-                  <button type="button" className="btn btn-sm" onClick={()=>document.getElementById("entity-review")?.scrollIntoView()}>03 · Review & publish</button>
+              <div className="cv-save-state">
+                <MediaIcon name={dirty ? "edit" : "check"} size={16} />
+                {record
+                  ? dirty
+                    ? "Unsaved changes in the editor"
+                    : "Saved draft · Version " + record.version
+                  : "New " + label + " · Save details before attaching media"}
+              </div>
+              {record && (
+                <nav className="cv-detail-nav" aria-label="Record workspace">
+                  {(
+                    [
+                      { id: "overview", label: "Overview", icon: "grid" },
+                      { id: "edit", label: "Edit draft", icon: "edit" },
+                      {
+                        id: "publish",
+                        label: "Review & publish",
+                        icon: "review",
+                      },
+                    ] as const
+                  ).map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      aria-pressed={panel === t.id}
+                      onClick={() => setPanel(t.id)}
+                    >
+                      <MediaIcon name={t.icon} size={17} />
+                      {t.label}
+                    </button>
+                  ))}
                 </nav>
-                <p style={{fontSize:13,color:"var(--text-secondary)"}}>Save the title and details first to create a durable draft. Then choose artwork and media, save their attachments and check publication requirements. You can revisit any section; uploading never publishes content.</p>
-                {!record&&<button type="submit" form="entity-draft" className="btn btn-primary" disabled={busy||!can(`${resource}.write`)}>Save details to start attaching media</button>}
-                {parentId&&<p style={{fontSize:13}}>This {label} is created inside its selected parent. Its number must be unique within that parent.</p>}
-              </Card>
-              <div className="editor-layout">
-                <form id="entity-draft"
+              )}
+              {record && panel === "overview" && (
+                <ContentOverview
+                  record={record}
+                  entity={entity}
+                  tax={tax}
+                  canEdit={!!can(`${resource}.write`)}
+                  onEdit={() => setPanel("edit")}
+                  onReview={() => setPanel("publish")}
+                />
+              )}
+              <div hidden={panel !== "edit"}>
+                <Card title="Shape the draft">
+                  <nav
+                    aria-label="Creation steps"
+                    style={{ display: "flex", gap: 10, flexWrap: "wrap" }}
+                  >
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() =>
+                        document
+                          .getElementById("entity-details")
+                          ?.scrollIntoView()
+                      }
+                    >
+                      01 · Details & access
+                    </button>
+                    {entity !== "seasons" && (
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() =>
+                          document
+                            .getElementById("entity-media")
+                            ?.scrollIntoView()
+                        }
+                      >
+                        02 · Media
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      disabled={!record}
+                      onClick={() => setPanel("publish")}
+                    >
+                      03 · Review & publish
+                    </button>
+                  </nav>
+                  <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                    Save details to create the draft, then attach artwork and
+                    media. Publication is a separate reviewed action.
+                  </p>
+                  {!record && (
+                    <button
+                      type="submit"
+                      form="entity-draft"
+                      className="btn btn-primary"
+                      disabled={busy || !can(`${resource}.write`)}
+                    >
+                      Save details to start attaching media
+                    </button>
+                  )}
+                  {parentId && (
+                    <p style={{ fontSize: 13 }}>
+                      This {label} belongs to its selected parent. Its number
+                      must be unique within that parent.
+                    </p>
+                  )}
+                </Card>
+              </div>
+              <div className="editor-layout cv-editor-panel">
+                <form
+                  hidden={panel !== "edit"}
+                  id="entity-draft"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void run(save);
@@ -708,7 +760,8 @@ export default function ConnectedEditorial({
                     }
                     style={{ border: 0, padding: 0, display: "grid", gap: 16 }}
                   >
-                    <div id="entity-details" style={{scrollMarginTop:80}}/><Card title="Basics">
+                    <div id="entity-details" style={{ scrollMarginTop: 80 }} />
+                    <Card title="Basics">
                       <div className="movie-fields">
                         {!record &&
                           parentId &&
@@ -1066,7 +1119,11 @@ export default function ConnectedEditorial({
                             </small>
                           </div>
                         </Card>
-                        <div id="entity-media" style={{scrollMarginTop:80}}/><Card
+                        <div
+                          id="entity-media"
+                          style={{ scrollMarginTop: 80 }}
+                        />
+                        <Card
                           title={
                             entity === "music"
                               ? "Artwork & media"
@@ -1085,14 +1142,94 @@ export default function ConnectedEditorial({
                               Each file must finish processing before
                               publication.
                             </p>
-                            {!record&&<p role="note">Save this draft before uploading or choosing files. Your title gives the upload a clear destination.</p>}
-                            {(["portrait", "landscape", "feature", ...(hasVideo ? ["video", "preview"] : [])]).map(slot => {
-                              const audio=entity==="music"&&draft.musicKind==="track";
-                              const value=slot==="feature"?draft.featureMediaVersionId:slot==="preview"?draft.previewMediaVersionId:slot==="video"?draft.primaryMediaVersionId:slot==="portrait"?draft.artwork.portraitVersionId:draft.artwork.landscapeVersionId;
-                              return <MediaAttachment key={`${id}:${record?.id??"new"}:${slot}`} label={slot==="feature"?"Hero clip (public, up to 30 seconds)":slot==="preview"?"Free preview (public, optional)":slot==="video"?(audio?"Full track":"Full video"):slot==="portrait"?"Portrait artwork":"Landscape artwork"}
-                                kind={slot==="feature"?"video":slot==="video"||slot==="preview"?(audio?"audio":"video"):"image"}
-                                value={value} disabled={!record||!can(`${resource}.write`)||record.status==="archived"} canRead={!!can("media.read")} canUpload={!!can("media.upload")} onBusyChange={setBusy} maxDuration={slot==="feature"?30:undefined}
-                                onChange={version=>{if(slot==="video")change({primaryMediaVersionId:version});else if(slot==="feature")change({featureMediaVersionId:version});else if(slot==="preview")change({previewMediaVersionId:version});else change({artwork:{...draft.artwork,[slot==="portrait"?"portraitVersionId":"landscapeVersionId"]:version}});}}/>;
+                            {!record && (
+                              <p role="note">
+                                Save this draft before uploading or choosing
+                                files. Your title gives the upload a clear
+                                destination.
+                              </p>
+                            )}
+                            {[
+                              "portrait",
+                              "landscape",
+                              "feature",
+                              ...(hasVideo ? ["video", "preview"] : []),
+                            ].map((slot) => {
+                              const audio =
+                                entity === "music" &&
+                                draft.musicKind === "track";
+                              const value =
+                                slot === "feature"
+                                  ? draft.featureMediaVersionId
+                                  : slot === "preview"
+                                    ? draft.previewMediaVersionId
+                                    : slot === "video"
+                                      ? draft.primaryMediaVersionId
+                                      : slot === "portrait"
+                                        ? draft.artwork.portraitVersionId
+                                        : draft.artwork.landscapeVersionId;
+                              return (
+                                <MediaAttachment
+                                  key={`${id}:${record?.id ?? "new"}:${slot}`}
+                                  label={
+                                    slot === "feature"
+                                      ? "Hero clip (public, up to 30 seconds)"
+                                      : slot === "preview"
+                                        ? "Free preview (public, optional)"
+                                        : slot === "video"
+                                          ? audio
+                                            ? "Full track"
+                                            : "Full video"
+                                          : slot === "portrait"
+                                            ? "Portrait artwork"
+                                            : "Landscape artwork"
+                                  }
+                                  kind={
+                                    slot === "feature"
+                                      ? "video"
+                                      : slot === "video" || slot === "preview"
+                                        ? audio
+                                          ? "audio"
+                                          : "video"
+                                        : "image"
+                                  }
+                                  value={value}
+                                  disabled={
+                                    !record ||
+                                    !can(`${resource}.write`) ||
+                                    record.status === "archived"
+                                  }
+                                  canRead={!!can("media.read")}
+                                  canUpload={!!can("media.upload")}
+                                  onBusyChange={setBusy}
+                                  maxDuration={
+                                    slot === "feature" ? 30 : undefined
+                                  }
+                                  onChange={(version) => {
+                                    if (slot === "video")
+                                      change({
+                                        primaryMediaVersionId: version,
+                                      });
+                                    else if (slot === "feature")
+                                      change({
+                                        featureMediaVersionId: version,
+                                      });
+                                    else if (slot === "preview")
+                                      change({
+                                        previewMediaVersionId: version,
+                                      });
+                                    else
+                                      change({
+                                        artwork: {
+                                          ...draft.artwork,
+                                          [slot === "portrait"
+                                            ? "portraitVersionId"
+                                            : "landscapeVersionId"]: version,
+                                        },
+                                      });
+                                  }}
+                                />
+                              );
                             })}
                             {hasVideo &&
                               !(
@@ -1112,7 +1249,31 @@ export default function ConnectedEditorial({
                                     transfer. The preview must be separate and
                                     shorter than the full film.
                                   </p>
-                                  <MediaAttachment key={`${id}:${record?.id??"new"}:rendition`} label="Additional full-length quality version (optional)" kind="video" value={null} disabled={!record||draft.renditionVersionIds.length>=5} canRead={!!can("media.read")} canUpload={!!can("media.upload")} onBusyChange={setBusy} onChange={v=>{if(v&&!draft.renditionVersionIds.includes(v))change({renditionVersionIds:[...draft.renditionVersionIds,v]});}}/>
+                                  <MediaAttachment
+                                    key={`${id}:${record?.id ?? "new"}:rendition`}
+                                    label="Additional full-length quality version (optional)"
+                                    kind="video"
+                                    value={null}
+                                    disabled={
+                                      !record ||
+                                      draft.renditionVersionIds.length >= 5
+                                    }
+                                    canRead={!!can("media.read")}
+                                    canUpload={!!can("media.upload")}
+                                    onBusyChange={setBusy}
+                                    onChange={(v) => {
+                                      if (
+                                        v &&
+                                        !draft.renditionVersionIds.includes(v)
+                                      )
+                                        change({
+                                          renditionVersionIds: [
+                                            ...draft.renditionVersionIds,
+                                            v,
+                                          ],
+                                        });
+                                    }}
+                                  />
                                   <small>
                                     {draft.renditionVersionIds.length}{" "}
                                     additional quality version(s). New video
@@ -1200,7 +1361,20 @@ export default function ConnectedEditorial({
                           </div>
                         </Card>
                         <Card title="Rights & availability">
- <OriginalsSettings value={draft} onChange={change} versions={[draft.primaryMediaVersionId,draft.previewMediaVersionId,draft.featureMediaVersionId,...draft.renditionVersionIds]} canRead={!!can("media.read")} canReview={!!can("media.upload")&&!!can("content.publish")}/>
+                          <OriginalsSettings
+                            value={draft}
+                            onChange={change}
+                            versions={[
+                              draft.primaryMediaVersionId,
+                              draft.previewMediaVersionId,
+                              draft.featureMediaVersionId,
+                              ...draft.renditionVersionIds,
+                            ]}
+                            canRead={!!can("media.read")}
+                            canReview={
+                              !!can("media.upload") && !!can("content.publish")
+                            }
+                          />
                           <div className="movie-fields">
                             <label
                               style={{
@@ -1295,8 +1469,29 @@ export default function ConnectedEditorial({
                     </button>
                   </fieldset>
                 </form>
-                <aside id="entity-review" style={{scrollMarginTop:80}} aria-label="Status and publishing">
-                  {record&&entity!=="seasons"&&<LifecycleSettings key={`${record.id}:${record.publishedRevisionId}`} kind={entity==="movies"?"movie":entity==="shows"?"show":entity==="episodes"?"episode":entity} id={record.id} revisionId={record.publishedRevisionId} canPublish={!!can(`${resource}.publish`)}/>}
+                <aside
+                  hidden={panel !== "publish"}
+                  id="entity-review"
+                  style={{ scrollMarginTop: 80 }}
+                  aria-label="Status and publishing"
+                >
+                  {record && entity !== "seasons" && (
+                    <LifecycleSettings
+                      key={`${record.id}:${record.publishedRevisionId}`}
+                      kind={
+                        entity === "movies"
+                          ? "movie"
+                          : entity === "shows"
+                            ? "show"
+                            : entity === "episodes"
+                              ? "episode"
+                              : entity
+                      }
+                      id={record.id}
+                      revisionId={record.publishedRevisionId}
+                      canPublish={!!can(`${resource}.publish`)}
+                    />
+                  )}
                   <Card title="Status">
                     <Badge
                       color={
@@ -1312,8 +1507,10 @@ export default function ConnectedEditorial({
                         color: "var(--text-secondary)",
                       }}
                     >
-                      {!record || dirty ? "Selections are not saved yet" : "Draft and media attachments saved"}.
-                      Publishing is an explicit permission.
+                      {!record || dirty
+                        ? "Selections are not saved yet"
+                        : "Draft and media attachments saved"}
+                      . Publishing is an explicit permission.
                     </p>
                   </Card>
                   {record && (
@@ -1521,7 +1718,7 @@ export default function ConnectedEditorial({
                       </div>
                     </Card>
                   )}
-                  {entity === "shows" && (
+                  {entity === "shows" && record && (
                     <LinkedSponsors kind="shows" id={record.id} />
                   )}
                   {!!history.length && (
@@ -1560,7 +1757,11 @@ export default function ConnectedEditorial({
                   )}
                 </aside>
               </div>
-              {record && childrenFor?.(record)}
+              {record && (
+                <div hidden={panel !== "overview"}>
+                  {childrenFor?.(record, !!can(`${resource}.write`))}
+                </div>
+              )}
             </>
           )}
         </>
