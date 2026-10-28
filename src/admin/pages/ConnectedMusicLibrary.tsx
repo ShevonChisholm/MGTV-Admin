@@ -5,7 +5,17 @@ import { api, ApiError } from "../api/client";
 import { Link, useRouter, useDirtyGuard } from "../router";
 import { Card, TextField, Modal } from "../ui";
 import StaffAuth from "./StaffAuth";
-const types = ["artists", "albums", "playlists"];
+import MediaIcon from "../components/MediaIcon";
+import { ContentStatus } from "../components/ContentVisual";
+import {
+  libraryTypes,
+  LibraryCover,
+  LibraryGrid,
+  LibraryGridSkeleton,
+  LibraryOverview,
+  MusicReleaseVisual,
+} from "../components/MusicLibraryVisual";
+const types = libraryTypes.map((t) => t.id);
 const defaults = (kind: string) => ({
   title: "",
   description: "",
@@ -43,6 +53,10 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
     [q, setQ] = useState(""),
+    [appliedQ, setAppliedQ] = useState(""),
+    [pane, setPane] = useState<"overview" | "edit" | "review">(
+      id === "new" ? "edit" : "overview",
+    ),
     [action, setAction] = useState(""),
     [reason, setReason] = useState(""),
     [progress, setProgress] = useState("");
@@ -84,20 +98,21 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
     } while (after);
     return result;
   }
-  async function load(after?: string) {
+  async function load(after?: string, query = appliedQ) {
     const s = await api("/admin/session");
     setSession(s);
     if (!s.permissions.includes(`${kind}.read`))
-      throw Error("You need content.read to view the music library.");
+      throw Error(`You need ${kind}.read to view this library.`);
     if (!id) {
       const page = await api(
         base +
-          "?limit=30&q=" +
-          encodeURIComponent(q) +
+          "?limit=24&q=" +
+          encodeURIComponent(query) +
           (after ? "&after=" + encodeURIComponent(after) : ""),
       );
       setItems((old) => (after ? [...old, ...page.items] : page.items));
       setCursor(page.nextCursor);
+      setAppliedQ(query);
       return;
     }
     if (!fresh) {
@@ -106,8 +121,16 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
       setDraft(record.draft);
       setHistory((await api(base + "/" + id + "/history")).items);
     }
-    setMusic(await all("/admin/music"));
-    if (kind === "albums") setArtists(await all("/admin/artists", "after"));
+    const [releases, people] = await Promise.all([
+      s.permissions.includes("music.read")
+        ? all("/admin/music")
+        : Promise.resolve([]),
+      kind === "albums" && s.permissions.includes("artists.read")
+        ? all("/admin/artists", "after")
+        : Promise.resolve([]),
+    ]);
+    setMusic(releases);
+    setArtists(people);
   }
   useEffect(() => {
     void run(() => load()).finally(() => setLoaded(true));
@@ -148,7 +171,13 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
     });
   }
   if (!loaded)
-    return <LoadingState label={<>Loading music library…</>} variant="table" />;
+    return id ? (
+      <LoadingState label={<>Loading music library…</>} variant="form" />
+    ) : (
+      <div className="page-pad music-library-editor">
+        <LibraryGridSkeleton />
+      </div>
+    );
   if (!session)
     return (
       <StaffAuth
@@ -160,23 +189,37 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
   if (!can(`${kind}.read`))
     return (
       <p className="page-pad" role="alert">
-        Music library access requires content.read.
+        This library requires the explicit {kind}.read permission.
       </p>
     );
+  if (id && !fresh && !r)
+    return (
+      <div className="page-pad" role="alert">
+        <h2>Record unavailable</h2>
+        <p>{error || "This item could not be loaded."}</p>
+        <button
+          className="btn"
+          disabled={busy}
+          onClick={() => void run(() => load())}
+        >
+          Try again
+        </button>{" "}
+        <Link to={path}>Back to {kind}</Link>
+      </div>
+    );
   const locked = busy || !can(`${kind}.write`) || r?.status === "archived";
+  const type = libraryTypes.find((t) => t.id === kind)!;
   return (
     <div className="page-pad music-library-editor">
-      <nav
-        aria-label="Music library sections"
-        style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}
-      >
-        {types.map((t) => (
+      <nav className="cv-type-nav" aria-label="Music library sections">
+        {libraryTypes.map((t) => (
           <Link
-            className={"btn " + (t === kind ? "btn-primary" : "")}
-            key={t}
-            to={"/admin/music-library/" + t}
+            aria-current={t.id === kind ? "page" : undefined}
+            key={t.id}
+            to={"/admin/music-library/" + t.id}
           >
-            {t[0].toUpperCase() + t.slice(1)}
+            <MediaIcon name={t.icon} size={18} />
+            {t.label}
           </Link>
         ))}
       </nav>
@@ -195,54 +238,69 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
       {notice && <p role="status">{notice}</p>}
       {!id ? (
         <>
-          <div className="toolbar">
+          <div className="ml-intro">
+            <div>
+              <span className="cv-kicker">MGTV music library</span>
+              <h2>{type.label}</h2>
+              <p>{type.description}</p>
+            </div>
+            <span className="ml-loaded">
+              <MediaIcon name="grid" size={17} />
+              {items.length} loaded{cursor ? " · more available" : ""}
+            </span>
+          </div>
+          <form
+            className="ml-search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!busy) void run(() => load(undefined, q));
+            }}
+          >
             <TextField
               label="Search titles"
+              maxLength={160}
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
-            <button
-              className="btn"
-              disabled={busy}
-              onClick={() => void run(() => load())}
-            >
-              Search
+            <button className="btn" disabled={busy} type="submit">
+              <MediaIcon name="search" size={16} /> Search
             </button>
+            {appliedQ && (
+              <button
+                className="btn"
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setQ("");
+                  void run(() => load(undefined, ""));
+                }}
+              >
+                Clear search
+              </button>
+            )}
             {can(`${kind}.write`) && (
               <Link className="btn btn-primary" to={path + "/new"}>
-                Create {kind.slice(0, -1)}
+                <MediaIcon name="plus" size={16} /> Create {type.singular}
               </Link>
             )}
-          </div>
-          <Card title={kind[0].toUpperCase() + kind.slice(1)}>
-            <div className="scroll-x">
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Status</th>
-                    <th>Saved revision</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id}>
-                      <td>
-                        <Link to={path + "/" + item.id}>
-                          {item.body.title || "Untitled"}
-                        </Link>
-                      </td>
-                      <td>{item.status}</td>
-                      <td>{item.version}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          </form>
+          {appliedQ && <p className="ml-loaded">Results for “{appliedQ}”</p>}
+          <LibraryGrid items={items} kind={kind} path={path} />
+          {!items.length && !busy && !error && (
+            <div className="ml-empty">
+              <MediaIcon name={type.icon} size={34} />
+              <h3>
+                {appliedQ
+                  ? "No matching " + type.label.toLowerCase()
+                  : "Your " + type.label.toLowerCase() + " start here"}
+              </h3>
+              <p>
+                {appliedQ
+                  ? "Try another title or clear the search."
+                  : "Create a draft and give it a cover, a story and linked music."}
+              </p>
             </div>
-            {!items.length && !busy && !error && (
-              <p>No records match this view.</p>
-            )}
-          </Card>
+          )}
           {cursor && (
             <button
               className="btn"
@@ -255,9 +313,63 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
         </>
       ) : (
         <>
-          <Link to={path}>← Back to {kind}</Link>
-          <div className="editor-layout" style={{ marginTop: 16 }}>
-            <div style={{ minWidth: 0 }}>
+          <Link className="btn" to={path}>
+            <MediaIcon name="back" size={16} /> Back to {kind}
+          </Link>
+          {!fresh && (
+            <>
+              <div className="ml-editor-state">
+                <ContentStatus status={r.status} />
+                <span>
+                  {dirty
+                    ? "Unsaved changes · overview shows the saved revision"
+                    : "Saved revision " + r.version}
+                </span>
+              </div>
+              <nav className="cv-detail-nav" aria-label="Record views">
+                {(["overview", "edit", "review"] as const).map((v) => (
+                  <button
+                    key={v}
+                    aria-pressed={pane === v}
+                    onClick={() => setPane(v)}
+                  >
+                    <MediaIcon
+                      name={
+                        v === "overview"
+                          ? type.icon
+                          : v === "edit"
+                            ? "edit"
+                            : "review"
+                      }
+                      size={17}
+                    />
+                    {v === "overview"
+                      ? "Overview"
+                      : v === "edit"
+                        ? "Edit draft"
+                        : "Review & publish"}
+                  </button>
+                ))}
+              </nav>
+              <div hidden={pane !== "overview"}>
+                <LibraryOverview
+                  record={r}
+                  kind={kind}
+                  music={music}
+                  artists={artists}
+                  canReadMusic={can("music.read")}
+                  canEdit={can(`${kind}.write`) && r.status !== "archived"}
+                  onEdit={() => setPane("edit")}
+                />
+              </div>
+            </>
+          )}
+          <div
+            className="editor-layout"
+            style={{ marginTop: 16 }}
+            hidden={!fresh && pane === "overview"}
+          >
+            <div style={{ minWidth: 0 }} hidden={pane !== "edit"}>
               <Card title="Details">
                 <fieldset
                   disabled={locked}
@@ -300,11 +412,18 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
                         <select
                           className="input"
                           value={draft.artistId ?? ""}
+                          disabled={!can("artists.read")}
                           onChange={(e) =>
                             change({ artistId: e.target.value || null })
                           }
                         >
                           <option value="">Choose an artist</option>
+                          {draft.artistId &&
+                            !artists.some((a) => a.id === draft.artistId) && (
+                              <option value={draft.artistId}>
+                                Linked artist · details unavailable
+                              </option>
+                            )}
                           {artists.map((a) => (
                             <option key={a.id} value={a.id}>
                               {a.body.title} · {a.status}
@@ -357,15 +476,23 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
                         objectFit: "cover",
                         borderRadius: kind === "artists" ? "50%" : 10,
                       }}
-                      src={"/api/v1" + base + "/" + id + "/cover"}
+                      src={
+                        "/api/v1" + base + "/" + id + "/cover?v=" + r.version
+                      }
+                      alt="Saved cover artwork"
+                      referrerPolicy="same-origin"
                     />
                   )}
+                <p className="ml-review-note">
+                  Choose artwork from a release or the Media Library. A new
+                  selection is attached only when you save the draft.
+                </p>
                 <label className="library-field">
                   Use existing release artwork
                   <select
                     className="input"
                     value=""
-                    disabled={locked}
+                    disabled={locked || !can("music.read")}
                     onChange={(e) => {
                       const release = music.find(
                         (m) => m.id === e.target.value,
@@ -391,7 +518,22 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
                       ))}
                   </select>
                 </label>
-                <MediaAttachment key={id} label="Cover artwork" kind="image" value={draft.coverMediaVersionId} disabled={locked} canRead={!!can("media.read")} canUpload={!!can("media.upload")} onBusyChange={setBusy} onChange={v=>change({coverMediaVersionId:v})}/>
+                {progress && (
+                  <p role="status" className="ml-review-note">
+                    {progress}
+                  </p>
+                )}
+                <MediaAttachment
+                  key={id}
+                  label="Cover artwork"
+                  kind="image"
+                  value={draft.coverMediaVersionId}
+                  disabled={locked}
+                  canRead={!!can("media.read")}
+                  canUpload={!!can("media.upload")}
+                  onBusyChange={setBusy}
+                  onChange={(v) => change({ coverMediaVersionId: v })}
+                />
               </Card>
               <Card
                 title={kind === "albums" ? "Track listing" : "Linked music"}
@@ -405,6 +547,7 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
                     <select
                       className="input"
                       value=""
+                      disabled={!can("music.read")}
                       onChange={(e) => {
                         if (e.target.value)
                           change({
@@ -431,71 +574,135 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
                         ))}
                     </select>
                   </label>
-                  <ol style={{ paddingLeft: 20 }}>
-                    {draft.musicIds.map((mid: string, index: number) => (
-                      <li
-                        key={mid}
-                        style={{ marginBottom: 10, overflowWrap: "anywhere" }}
-                      >
-                        {music.find((m) => m.id === mid)?.draft?.title ??
-                          music.find((m) => m.id === mid)?.title ??
-                          "Unavailable release"}{" "}
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            flexWrap: "wrap",
-                            gap: 4,
-                          }}
-                        >
-                          <button
-                            className="btn btn-sm"
-                            disabled={locked || index === 0}
-                            onClick={() => move(index, -1)}
-                            aria-label={"Move item " + (index + 1) + " up"}
-                          >
-                            Up
-                          </button>
-                          <button
-                            className="btn btn-sm"
-                            disabled={
-                              locked || index === draft.musicIds.length - 1
-                            }
-                            onClick={() => move(index, 1)}
-                            aria-label={"Move item " + (index + 1) + " down"}
-                          >
-                            Down
-                          </button>
-                          <button
-                            className="btn btn-sm"
-                            onClick={() =>
-                              change({
-                                musicIds: draft.musicIds.filter(
-                                  (x: string) => x !== mid,
-                                ),
-                              })
-                            }
-                          >
-                            Remove
-                          </button>
-                        </span>
-                      </li>
-                    ))}
+                  <ol className="ml-releases">
+                    {draft.musicIds.map((mid: string, index: number) => {
+                      const m = music.find((m) => m.id === mid);
+                      return (
+                        <li key={mid}>
+                          <span className="ml-position">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <MusicReleaseVisual record={m} />
+                          <div className="ml-release-copy">
+                            <strong>
+                              {m?.draft?.title ??
+                                (can("music.read")
+                                  ? "Unavailable release"
+                                  : "Linked release")}
+                            </strong>
+                            <small>
+                              {m
+                                ? [
+                                    m.draft?.artist,
+                                    m.draft?.musicKind === "track"
+                                      ? "Audio track"
+                                      : "Music video",
+                                    m.status,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")
+                                : "Reference retained"}
+                            </small>
+                          </div>
+                          <div className="ml-reorder">
+                            <button
+                              type="button"
+                              className="btn btn-sm ml-up"
+                              disabled={locked || index === 0}
+                              onClick={() => move(index, -1)}
+                              aria-label={"Move item " + (index + 1) + " up"}
+                              title="Move up"
+                            >
+                              <MediaIcon name="arrow" size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm ml-down"
+                              disabled={
+                                locked || index === draft.musicIds.length - 1
+                              }
+                              onClick={() => move(index, 1)}
+                              aria-label={"Move item " + (index + 1) + " down"}
+                              title="Move down"
+                            >
+                              <MediaIcon name="arrow" size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              disabled={locked}
+                              onClick={() =>
+                                change({
+                                  musicIds: draft.musicIds.filter(
+                                    (x: string) => x !== mid,
+                                  ),
+                                })
+                              }
+                              aria-label={"Remove item " + (index + 1)}
+                              title="Remove from collection"
+                            >
+                              <MediaIcon name="trash" size={16} />
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ol>
+                  {!draft.musicIds.length && (
+                    <div className="ml-empty">
+                      <MediaIcon name="audio" size={28} />
+                      <p>No releases linked. Choose music above to start.</p>
+                    </div>
+                  )}
+                  {!can("music.read") && (
+                    <p className="ml-review-note">
+                      Linked references are preserved. Music read permission is
+                      required to browse additional releases.
+                    </p>
+                  )}
                 </fieldset>
               </Card>
               <Card title="Activity history">
-                {history.map((h) => (
-                  <div key={h.id} style={{ marginBottom: 12 }}>
-                    <strong>{h.action}</strong>
-                    <p>{h.details.reason}</p>
-                    <small>{new Date(h.created_at).toLocaleString()}</small>
-                  </div>
-                ))}
+                <ol className="ml-history">
+                  {history.map((h) => (
+                    <li key={h.id}>
+                      <MediaIcon name="clock" size={18} />
+                      <div>
+                        <strong>{h.action.replace(/[._]/g, " ")}</strong>
+                        {h.details?.reason && <p>{h.details.reason}</p>}
+                        <small>{new Date(h.created_at).toLocaleString()}</small>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
                 {!history.length && <p>No activity yet.</p>}
               </Card>
             </div>
-            <aside style={{ minWidth: 0 }}>
-              <Card title="Publication">
+            <aside
+              className={pane === "review" ? "ml-review-panels" : undefined}
+              style={{
+                minWidth: 0,
+                ...(pane === "review" ? { gridColumn: "1 / -1" } : {}),
+              }}
+            >
+              {pane === "review" && (
+                <Card title="Review saved revision">
+                  <LibraryCover
+                    record={r}
+                    kind={kind}
+                    className="ml-review-cover"
+                  />
+                  <h3>{r.draft.title || "Untitled"}</h3>
+                  <p className="ml-review-note">
+                    {dirty
+                      ? "Unsaved changes exist. Save the draft before making a publication decision."
+                      : "Decisions apply to the saved revision shown here. The server validates cover artwork, linked releases and permissions."}
+                  </p>
+                </Card>
+              )}
+              <Card
+                title={pane === "review" ? "Publication" : "Draft controls"}
+              >
                 <p>
                   {r?.status ?? "New draft"} ·{" "}
                   {dirty ? "Unsaved changes" : "Saved"}
@@ -507,7 +714,7 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
                 >
                   Save draft
                 </button>
-                {!fresh && (
+                {!fresh && pane === "review" && (
                   <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
                     {["publish", "unpublish", "archive", "restore"].map((a) => (
                       <button
@@ -539,6 +746,15 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
                       </button>
                     ))}
                   </div>
+                )}
+                {!fresh && pane === "edit" && (
+                  <button
+                    className="btn"
+                    style={{ marginTop: 12 }}
+                    onClick={() => setPane("review")}
+                  >
+                    <MediaIcon name="review" size={16} /> Review & publish
+                  </button>
                 )}
                 <p>
                   Save and review before publishing. Linked releases must be

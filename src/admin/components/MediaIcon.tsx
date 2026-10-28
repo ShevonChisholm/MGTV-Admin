@@ -1,4 +1,10 @@
 const paths: Record<string, string> = {
+  artist: "M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a8 8 0 0 1 16 0v2",
+  album:
+    "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
+  playlist:
+    "M3 4h13M3 9h13M3 14h7m6-2v8m0-8 5-1v7m-5 2a2 2 0 1 1-2-2 2 2 0 0 1 2 2Zm5-2a2 2 0 1 1-2-2 2 2 0 0 1 2 2Z",
+  trash: "M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7",
   plus: "M12 4v16M4 12h16",
   film: "M3 3h18v18H3zM3 8h18M3 16h18M8 3v5M16 3v5M8 16v5M16 16v5",
   series: "M3 7h18v14H3zM6 3h12M5 5h14m-5 5 4 4-4 4",
