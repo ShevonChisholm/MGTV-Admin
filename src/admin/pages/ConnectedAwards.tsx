@@ -1,3 +1,12 @@
+import {
+  AwardArt,
+  AwardStates,
+  AwardsGrid,
+  AwardOverview,
+  AwardsHistory,
+} from "../components/AwardsVisual";
+import { PartnerSkeleton } from "../components/PartnersVisual";
+import MediaIcon from "../components/MediaIcon";
 import AwardPresentation from "../components/AwardPresentation";
 import MediaAttachment from "../components/MediaAttachment";
 import LoadingState from "../components/LoadingState";
@@ -43,7 +52,10 @@ function AwardsView({ id }: { id?: string }) {
     [action, setAction] = useState<string | null>(null),
     [reason, setReason] = useState(""),
     [confirmation, setConfirmation] = useState(""),
-    [preview, setPreview] = useState<any>(null);
+    [preview, setPreview] = useState<any>(null),
+    [q, setQ] = useState(""),
+    [status, setStatus] = useState(""),
+    [applied, setApplied] = useState({ q: "", status: "" });
   const leaving = useRef(false),
     request = useRef<{ payload: string; key: string } | null>(null),
     dirty = record
@@ -67,7 +79,14 @@ function AwardsView({ id }: { id?: string }) {
       setBusy(false);
     }
   }
-  async function load() {
+  function query(filters = applied, after?: string) {
+    const p = new URLSearchParams({ limit: "24" });
+    if (filters.q) p.set("q", filters.q);
+    if (filters.status) p.set("status", filters.status);
+    if (after) p.set("cursor", after);
+    return "/admin/awards?" + p;
+  }
+  async function load(filters = applied) {
     const s = await api("/admin/session");
     setSession(s);
     if (!s.permissions.includes("awards.read"))
@@ -78,8 +97,9 @@ function AwardsView({ id }: { id?: string }) {
       setDraft(r.draft);
       setHistory((await api("/admin/awards/" + id + "/history")).items);
     } else if (!id) {
-      const p = await api("/admin/awards?limit=25");
+      const p = await api(query(filters));
       setItems(p.items);
+      setApplied(filters);
       setCursor(p.nextCursor);
     }
   }
@@ -132,12 +152,58 @@ function AwardsView({ id }: { id?: string }) {
     done: (id: string | null) => void,
     video = false,
   ) {
-    return <MediaAttachment key={`${record?.id??"new"}:${key}`} label={label} kind={video?"video":"image"} value={value} disabled={busy||locked||!can("awards.write")} canRead={!!can("media.read")} canUpload={!!can("media.upload")} onBusyChange={setBusy} onChange={done}/>;
+    return (
+      <MediaAttachment
+        key={`${record?.id ?? "new"}:${key}`}
+        label={label}
+        kind={video ? "video" : "image"}
+        value={value}
+        disabled={busy || locked || !can("awards.write")}
+        canRead={!!can("media.read")}
+        canUpload={!!can("media.upload")}
+        onBusyChange={setBusy}
+        onChange={done}
+      />
+    );
   }
-  const tabs = ["overview", "categories", "nominees", "activity"],
-    tab = tabs.includes(route.parts[1]) ? route.parts[1] : "overview";
+  const tabs = [
+      "overview",
+      "details",
+      "categories",
+      "nominees",
+      "presentation",
+      "review",
+      "activity",
+    ],
+    tab = tabs.includes(route.parts[1])
+      ? route.parts[1]
+      : isNew
+        ? "details"
+        : "overview";
+  const labels: Record<string, string> = {
+    overview: "Overview",
+    details: "Program details",
+    categories: "Categories",
+    nominees: "Nominees",
+    presentation: "Artwork refresh",
+    review: "Voting & release",
+    activity: "Activity",
+  };
+  const icons: Record<string, string> = {
+    overview: "sport",
+    details: "edit",
+    categories: "grid",
+    nominees: "users",
+    presentation: "image",
+    review: "review",
+    activity: "clock",
+  };
   if (!loaded)
-    return <LoadingState label={<>Loading Awards…</>} variant="table" />;
+    return id ? (
+      <LoadingState label="Loading award program…" variant="form" />
+    ) : (
+      <PartnerSkeleton />
+    );
   if (!session)
     return (
       <>
@@ -147,26 +213,50 @@ function AwardsView({ id }: { id?: string }) {
         <StaffAuth onAuthenticated={() => run(load)} />
       </>
     );
+  if (!can("awards.read"))
+    return (
+      <div className="page-pad" role="alert">
+        Explicit awards.read permission is required.
+      </div>
+    );
   return (
-    <div className="page-pad">
+    <div className="page-pad aw-workspace">
       <PageActions>
         <Link className="btn" to="/admin/awards">
           All award programs
         </Link>
         {!id && can("awards.write") && (
-          <Link className="btn btn-primary" to="/admin/awards/new/overview">
+          <Link className="btn btn-primary" to="/admin/awards/new/details">
             Create award program
           </Link>
         )}
-        {id && can("awards.write") && (
-          <button
-            className="btn btn-primary"
-            disabled={busy || locked || !dirty}
-            onClick={() => void run(save)}
-          >
-            {busy ? "Working…" : "Save draft"}
-          </button>
-        )}
+        {id &&
+          ["details", "categories", "nominees"].includes(tab) &&
+          can("awards.write") && (
+            <>
+              <span className="pv-muted">
+                {dirty ? "Unsaved changes" : "All changes saved"}
+              </span>
+              <button
+                className="btn"
+                disabled={busy || !dirty}
+                onClick={() => {
+                  setDraft(record?.draft ?? blank);
+                  setIssues([]);
+                  setNotice("");
+                }}
+              >
+                Discard
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={busy || locked || !dirty}
+                onClick={() => void run(save)}
+              >
+                {busy ? "Working…" : "Save draft"}
+              </button>
+            </>
+          )}
       </PageActions>
       {error && (
         <div
@@ -198,43 +288,68 @@ function AwardsView({ id }: { id?: string }) {
       )}
       {!id ? (
         items.length ? (
-          <div className="scroll-x">
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>Program</th>
-                  <th>Categories</th>
-                  <th>Publication</th>
-                  <th>Voting</th>
-                  <th>Results</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <Link to={"/admin/awards/" + r.id + "/overview"}>
-                        {r.draft.title} · {r.draft.year}
-                      </Link>
-                    </td>
-                    <td>{r.draft.categories.length}</td>
-                    <td>{r.status}</td>
-                    <td>{r.votingState}</td>
-                    <td>{r.resultsState}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div>
+            <div className="pv-list-head">
+              <div>
+                <span className="cv-kicker">MGTV Awards</span>
+                <h2>Celebrate the people. Shape the moment.</h2>
+                <p>Programs, ballots and release status at a glance.</p>
+              </div>
+              <span className="pv-muted">
+                {items.length} loaded{cursor ? " · more available" : ""}
+              </span>
+            </div>
+            <div className="pv-toolbar">
+              <TextField
+                label="Search award programs"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              <label>
+                Publication
+                <select
+                  className="input"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="">All publication states</option>
+                  {["draft", "published", "unpublished", "archived"].map(
+                    (v) => (
+                      <option key={v}>{v}</option>
+                    ),
+                  )}
+                </select>
+              </label>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => void run(() => load({ q, status }))}
+              >
+                <MediaIcon name="filter" size={16} />
+                Apply filters
+              </button>
+              {(applied.q || applied.status) && (
+                <button
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => {
+                    setQ("");
+                    setStatus("");
+                    void run(() => load({ q: "", status: "" }));
+                  }}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+            <AwardsGrid items={items} canRead={!!can("media.read")} />
             {cursor && (
               <button
                 className="btn"
                 disabled={busy}
                 onClick={() =>
                   void run(async () => {
-                    const p = await api(
-                      "/admin/awards?limit=25&cursor=" +
-                        encodeURIComponent(cursor),
-                    );
+                    const p = await api(query(applied, cursor));
                     setItems((old) => [...old, ...p.items]);
                     setCursor(p.nextCursor);
                   })
@@ -245,15 +360,32 @@ function AwardsView({ id }: { id?: string }) {
             )}
           </div>
         ) : (
-          <EmptyState
-            title="No award programs"
-            body="Create a program to add categories and nominees."
-          />
+          <>
+            <EmptyState
+              title={
+                applied.q || applied.status
+                  ? "No matching award programs"
+                  : "No award programs"
+              }
+              body="Clear your filters or create a program to add categories and nominees."
+            />
+            <button
+              className="btn"
+              disabled={busy}
+              onClick={() => {
+                setQ("");
+                setStatus("");
+                void run(() => load({ q: "", status: "" }));
+              }}
+            >
+              Clear filters
+            </button>
+          </>
         )
       ) : (
         <>
           <div
-            className="route-tabs"
+            className="cv-detail-nav"
             style={{
               display: "flex",
               gap: 8,
@@ -272,7 +404,8 @@ function AwardsView({ id }: { id?: string }) {
                   leaving.current = false;
                 }}
               >
-                {t[0].toUpperCase() + t.slice(1)}
+                <MediaIcon name={icons[t]} size={17} />
+                {labels[t]}
               </button>
             ))}
           </div>
@@ -283,9 +416,9 @@ function AwardsView({ id }: { id?: string }) {
           )}
           {record && (
             <p style={{ color: "var(--text-secondary)" }}>
-              Publication: {record.status} · Voting: {record.votingState} ·
-              Results: {record.resultsState} ·{" "}
-              {dirty ? "Unsaved changes" : "Saved"}
+              {dirty
+                ? "Unsaved changes · Overview shows saved information."
+                : "Saved program"}
             </p>
           )}
           {locked && (
@@ -295,7 +428,10 @@ function AwardsView({ id }: { id?: string }) {
                 : "Restore this archived program before editing."}
             </p>
           )}
-          {tab === "overview" && (
+          {tab === "overview" && record && (
+            <AwardOverview record={record} canRead={!!can("media.read")} />
+          )}
+          {tab === "details" && (
             <>
               <Card title="Program details">
                 <fieldset
@@ -389,19 +525,25 @@ function AwardsView({ id }: { id?: string }) {
           )}
           {tab === "categories" && (
             <Card title="Categories">
+              <p className="pv-muted">
+                Open a category to edit its details. Nominees have their own
+                section.
+              </p>
               <fieldset
                 disabled={busy || locked || !can("awards.write")}
                 style={{ border: 0, padding: 0, minWidth: 0 }}
               >
                 {draft.categories.map((c, i) => (
-                  <div
-                    key={c.id}
-                    style={{
-                      borderBottom: "1px solid var(--border)",
-                      paddingBottom: 18,
-                      marginBottom: 18,
-                    }}
-                  >
+                  <details className="aw-editor-card" key={c.id}>
+                    <summary>
+                      <MediaIcon name="sport" />
+                      <span>
+                        {c.name || "New category"}
+                        <small>
+                          {c.section} · {c.nominees.length} nominees
+                        </small>
+                      </span>
+                    </summary>
                     <TextField
                       label="Category name"
                       value={c.name}
@@ -436,7 +578,7 @@ function AwardsView({ id }: { id?: string }) {
                     >
                       Remove category
                     </button>
-                  </div>
+                  </details>
                 ))}
                 <button
                   className="btn"
@@ -461,6 +603,12 @@ function AwardsView({ id }: { id?: string }) {
               </fieldset>
             </Card>
           )}
+          {tab === "nominees" && !draft.categories.length && (
+            <EmptyState
+              title="Start with a category"
+              body="Add a category first, then build its nominee line-up here."
+            />
+          )}
           {tab === "nominees" &&
             draft.categories.map((c, ci) => (
               <Card key={c.id} title={c.name || "Unnamed category"}>
@@ -469,14 +617,18 @@ function AwardsView({ id }: { id?: string }) {
                   style={{ border: 0, padding: 0, minWidth: 0 }}
                 >
                   {c.nominees.map((n: any, ni: number) => (
-                    <div
-                      key={n.id}
-                      style={{
-                        borderBottom: "1px solid var(--border)",
-                        marginBottom: 18,
-                        paddingBottom: 18,
-                      }}
-                    >
+                    <details className="aw-editor-card" key={n.id}>
+                      <summary>
+                        <AwardArt
+                          record={record}
+                          version={n.imageVersionId}
+                          canRead={!!can("media.read")}
+                        />
+                        <span>
+                          {n.name || "New nominee"}
+                          <small>{n.subtitle || c.name}</small>
+                        </span>
+                      </summary>
                       <TextField
                         label="Nominee name"
                         value={n.name}
@@ -513,7 +665,7 @@ function AwardsView({ id }: { id?: string }) {
                       >
                         Remove nominee
                       </button>
-                    </div>
+                    </details>
                   ))}
                   <button
                     className="btn"
@@ -541,20 +693,35 @@ function AwardsView({ id }: { id?: string }) {
           {tab === "activity" && (
             <Card title="Activity history">
               {history.length ? (
-                history.map((h, i) => (
-                  <p key={i}>
-                    {h.action} · {new Date(h.created_at).toLocaleString()}{" "}
-                    {h.details?.reason ?? ""}
-                  </p>
-                ))
+                <AwardsHistory items={history} />
               ) : (
                 <p>No recorded activity yet.</p>
               )}
             </Card>
           )}
-          {record?.publishedRevisionId&&<AwardPresentation key={record.id+record.publishedRevisionId} id={record.id} disabled={busy||!!dirty} canRead={!!can("media.read")} canUpload={!!can("media.upload")} canPublish={!!can("awards.write")&&!!can("awards.publish")}/>}
-          {record && (
+          {tab === "presentation" && record?.publishedRevisionId && (
+            <AwardPresentation
+              key={record.id + record.publishedRevisionId}
+              id={record.id}
+              disabled={busy || !!dirty}
+              canRead={!!can("media.read")}
+              canUpload={!!can("media.upload")}
+              canPublish={!!can("awards.write") && !!can("awards.publish")}
+            />
+          )}
+          {tab === "presentation" && !record?.publishedRevisionId && (
+            <p className="pv-notice">
+              Save media in Program details before publication. Artwork refresh
+              becomes available after the program has a published revision.
+            </p>
+          )}
+          {tab === "review" && record && (
             <Card title="Publication and voting controls">
+              <AwardStates record={record} />
+              <p className="pv-notice">
+                Actions apply to the saved revision. Opening voting freezes the
+                ballot. Review and release results only after voting closes.
+              </p>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button
                   className="btn"
@@ -718,15 +885,41 @@ function AwardsView({ id }: { id?: string }) {
             <div>
               <p>Total votes: {preview.totalVotes}</p>
               {preview.categories.map((c: any) => (
-                <div key={c.id}>
+                <div key={c.id} className="aw-results-category">
                   <strong>
-                    {c.name} · {c.outcome}
+                    {c.name} ·{" "}
+                    {(
+                      {
+                        winner: "Winner",
+                        tie: "Joint winners",
+                        no_votes: "No votes · no winner",
+                      } as Record<string, string>
+                    )[c.outcome] ?? c.outcome}
                   </strong>
                   {c.nominees.map((n: any) => (
-                    <p key={n.id}>
-                      {n.name}: {n.votes}
-                      {c.winnerIds.includes(n.id) ? " · winner" : ""}
-                    </p>
+                    <div className="aw-results-row" key={n.id}>
+                      <AwardArt
+                        record={record}
+                        version={
+                          record.presentation?.nominees?.find(
+                            (item: any) => item.nomineeId === n.id,
+                          )?.imageVersionId ??
+                          record.draft.categories
+                            .find((cat: any) => cat.id === c.id)
+                            ?.nominees.find((nom: any) => nom.id === n.id)
+                            ?.imageVersionId
+                        }
+                        canRead={!!can("media.read")}
+                      />
+                      <strong>{n.name}</strong>
+                      <span>{n.votes} votes</span>
+                      {c.winnerIds.includes(n.id) && (
+                        <span className="cv-kicker">
+                          <MediaIcon name="sport" size={16} />
+                          {c.outcome === "tie" ? "Joint winner" : "Winner"}
+                        </span>
+                      )}
+                    </div>
                   ))}
                 </div>
               ))}

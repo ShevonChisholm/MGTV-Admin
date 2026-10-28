@@ -1,0 +1,20 @@
+# Awards & Voting admin visual improvements
+
+28 October 2026. Implemented locally; not deployed. Stopped after Awards & Voting. DRM and production email pending.
+
+Artwork-led program cards replace the list table. Search/publication filters use the existing bounded API; applied filters remain separate from unsubmitted inputs for cursor continuation. Grid shows actual category/nominee counts, publication/voting/results status and current reviewed program imagery. No voting counts are invented or exposed through the list.
+
+Saved Overview shows the program hero, publication/voting/results badges, voting schedule in the program IANA timezone, policy tiles and illustrated category/nominee ballot. Editing is separate: Program details, Categories and Nominees. Categories/nominees use native expandable editors with image/icon summaries; no form field or mutation was removed. Saved Overview remains isolated from draft edits, and discard restores the saved draft. Artwork refresh is separate from ballot editing, with its existing review workflow. Voting & release contains the existing authoritative commands; Activity uses an icon timeline. Private result review uses real counts and nominee thumbnails, explicit no-winner wording for zero votes and the existing reason/title confirmation.
+
+MGTV charcoal/gold and diagonal corners retained. Private lazy image/failure states and explicit media-access-required fallback; no new dependencies. API get/list metadata optionally includes the current presentation overlay only where its source revision matches the program's current published revision. List uses one presentation batch, not per-card HTTP calls. Frozen draft/ballot content is never rewritten by this read metadata. Existing private artwork route still requires awards.read and media.read. Public delivery, grants, schema and voting rules are unchanged.
+
+Validation:
+- Admin TypeScript/Vite production build passed; existing bundle-size warning remains.
+- API TypeScript passed. Profiles/publishing regression files 179/179 passed; full Auth 18/18 passed for the concurrent profile fix. Two focused admin-artwork tests passed: metadata does not rewrite the saved ballot, and real SQL TEMP-table batch lookup excludes mismatched published-source overlays. Test TEMP tables rolled back; disposable suite databases cleaned by their suites.
+- Normal authorized local staff MFA session: four program cards with current reviewed artwork, saved Culture Awards Overview, illustrated ballot and nominees; published open ballot fields and Save disabled. Tomorrow's Gold temporary title remained in editing while Overview retained the saved title and dirty Publish/Open voting were disabled; discarded without saving.
+- Native nominee disclosure opened with image and existing form fields. Expanded editor contained at 320px. Artwork refresh entry remained accessible on the open/frozen ballot without permitting ballot edits.
+- Closed Island Voices private results preview showed zero actual votes, no winner, and Confirm disabled without required reason/title. Cancelled; no release submitted.
+- Empty search/clear recovered four programs. Loaded grid, saved overview, program editor and nominee screen fit at 320/390/768/1440px with no page overflow or overflowing form control. Browser error log empty.
+- Screenshots in docs/evidence/awards-visual/. No local award, vote, release, publication, artwork or permission mutation submitted.
+
+Boundaries: no separate read-only/release-only browser account provisioned; server policy remains covered by regressions/source review. Cursor continuation was source-reviewed, not browser-exercised (four records). New program save, media upload, successful release/withdrawal, forced stale conflict and exhaustive assistive-technology/CLS acceptance were not repeated in the normal database. Hosted acceptance awaits deployment. Profile/avatar customer browser review is separately pending user sign-in; see ../../api/docs/profile-avatars.md.
