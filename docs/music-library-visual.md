@@ -1,6 +1,6 @@
 # Artists, Albums & Playlists admin visual workspace
 
-28 October 2026. Implemented and checked locally; not deployed to the stable admin preview.
+28 October 2026. Implemented, checked locally and deployed to the stable disposable admin preview.
 
 ## Scope and presentation
 
@@ -33,4 +33,11 @@ No backend endpoint, database schema, source artwork, catalog record or provider
 
 No create/save/publish/archive/restore/upload mutation was submitted. No separate read-only staff browser session was provisioned; permission conditions were inspected in source and existing server policies remain authoritative. The dataset did not exceed one list page, so live cursor continuation was not exercised; query/cursor propagation was reviewed. Missing-art fallback, unavailable-record guard and stale-version handling were reviewed in code but not forced through a failing backend during browser acceptance. Exhaustive assistive-technology and measured CLS acceptance remain release QA.
 
-DRM and production email remain pending. Stop before Events. Source can be reviewed and deployed as a separate next step.
+DRM and production email remain pending. Stop before Events. Preview rollout is complete; no next area started.
+
+
+## Preview rollout
+
+Admin commit d672a8088b251766545a35c83839299fab3474ee deployed READY as dpl_DRN9UPkLr1SDNZVnhcPfqSBkZVuE at https://mgtv-admin.vercel.app. Stable alias and exact source SHA verified. Previous rollback: f748d25156ca8b5dfcb578e507c7f1793d13b969 / dpl_4BkbrrRc9ttkk8HdKnefFXfbBxh8. Vercel calls this stable disposable-preview address its Production target; business production remains pending.
+
+Hosted authenticated acceptance used the existing staff MFA session: fourteen artist cards and fourteen loaded private portraits; MGTV Studio Sessions overview with six linked releases and seven loaded images; Edit draft and Review views; album grid, Island Sketches cover/three thumbnails and saved artist/track order; album-to-artist navigation; fifteen stacked playlist cards with fifteen loaded covers; The Screening Room video-playlist overview, three release rows, direct reload and editor. Playlist grid contained at 320/390/768/1440px (document widths 310/380/758/1430px). At 320px, the video-playlist editor's three reorder rows fit without overflow. Browser error log was empty. No record, media attachment, publication, permission or provider setting was changed. API and customer frontend remain unchanged. DRM and production email remain pending; stopped before Events.
