@@ -1,3 +1,4 @@
+import CommerceOrdersWorkspace from "../components/CommerceOrdersWorkspace";
 import CommerceProductGrid from "../components/CommerceProductGrid";
 import CommerceProductOverview from "../components/CommerceProductOverview";
 import ProductGalleryEditor from "../components/ProductGalleryEditor";
@@ -103,17 +104,6 @@ export default function ConnectedCommerce() {
       active = false;
     };
   }, [productId, loaded, session]);
-  async function detail(id: string) {
-    if (tab === "products") {
-      navigate("/admin/commerce/products/" + id);
-      return;
-    }
-
-    await run(async () => {
-      setSelected(await api("/admin/commerce/" + tab + "/" + id));
-      setReason("");
-    });
-  }
   function edit(p?: any) {
     setEditing(p ?? {});
     setForm(
@@ -140,6 +130,8 @@ export default function ConnectedCommerce() {
         {error && <p role="alert">{error}</p>}
       </div>
     );
+  if (route.parts[0] === "orders")
+    return <CommerceOrdersWorkspace permissions={session.permissions} />;
   return (
     <div className="page-pad">
       {productId ? (
@@ -188,149 +180,113 @@ export default function ConnectedCommerce() {
           Add product
         </button>
       )}
-      {!productId &&
-        (tab === "products" ? (
-          <CommerceProductGrid items={items} />
-        ) : (
-          <Card>
-            <div style={{ overflowX: "auto" }}>
-              <table className="table" style={{ width: "100%" }}>
-                <thead>
-                  <tr>
-                    {(tab === "products"
-                      ? ["Product", "Type", "Status", "Options", "Action"]
-                      : ["Order", "Status", "Total", "Created", "Action"]
-                    ).map((x) => (
-                      <th key={x}>{x}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((p) => (
-                    <tr key={p.id}>
-                      {tab === "products" ? (
-                        <>
-                          <td>{p.name}</td>
-                          <td>{p.kind}</td>
-                          <td>
-                            {p.status}
-                            {p.payment_hold && (
-                              <span className="block text-amber-300 text-xs">
-                                {p.status === "refunded"
-                                  ? "Refund completed"
-                                  : "Payment / refund review"}
-                              </span>
-                            )}
-                            {p.ticketReviewRequired && (
-                              <span className="block text-amber-300 text-xs">
-                                Event booking needs review
-                              </span>
-                            )}
-                          </td>
-                          <td>{p.options.length}</td>
-                        </>
-                      ) : (
-                        <>
-                          <td style={{ overflowWrap: "anywhere" }}>{p.id}</td>
-                          <td>
-                            {p.status}
-                            {p.payment_hold && (
-                              <span className="block text-amber-300 text-xs">
-                                {p.status === "refunded"
-                                  ? "Refund completed"
-                                  : "Payment / refund review"}
-                              </span>
-                            )}
-                            {p.ticketReviewRequired && (
-                              <span className="block text-amber-300 text-xs">
-                                Event booking needs review
-                              </span>
-                            )}
-                          </td>
-                          <td>{money(p.total_minor)}</td>
-                          <td>{new Date(p.created_at).toLocaleDateString()}</td>
-                        </>
-                      )}
-                      <td>
-                        <button
-                          className="btn btn-secondary"
-                          disabled={busy}
-                          onClick={() => void detail(p.id)}
-                        >
-                          Open
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {!items.length && <p className="p-5">No {tab} yet.</p>}
-            </div>
-          </Card>
-        ))}
+      {!productId && <CommerceProductGrid items={items} />}
       {productId && busy && !selected && (
         <LoadingState label="Loading product…" variant="cards" />
       )}
       {selected && (
         <Card>
           <div className="p-5 space-y-4">
-            {tab === "products" ? (
-              <>
-                <CommerceProductOverview
-                  key={selected.id + ":" + selected.version}
-                  product={selected}
-                />
-                <h3 className="text-lg font-semibold">
-                  Gallery & product management
-                </h3>
-                <ProductGalleryEditor
-                  key={selected.id + ":" + selected.version}
-                  product={selected}
-                  permissions={session.permissions}
-                  onSaved={async () => {
-                    setSelected(
-                      await api("/admin/commerce/products/" + selected.id),
-                    );
-                    await refresh();
+            <>
+              <CommerceProductOverview
+                key={selected.id + ":" + selected.version}
+                product={selected}
+              />
+              <h3 className="text-lg font-semibold">
+                Gallery & product management
+              </h3>
+              <ProductGalleryEditor
+                key={selected.id + ":" + selected.version}
+                product={selected}
+                permissions={session.permissions}
+                onSaved={async () => {
+                  setSelected(
+                    await api("/admin/commerce/products/" + selected.id),
+                  );
+                  await refresh();
+                }}
+              />
+              <p>
+                Status: {selected.status} · Version {selected.version}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="btn btn-secondary"
+                  disabled={
+                    busy ||
+                    selected.status === "published" ||
+                    !can("commerce.products.manage")
+                  }
+                  onClick={() => edit(selected)}
+                >
+                  Edit product
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  disabled={
+                    busy ||
+                    selected.status === "published" ||
+                    !can("commerce.inventory.manage")
+                  }
+                  onClick={() => {
+                    setOption({});
+                    setOpt(optionBlank());
                   }}
-                />
-                <p>
-                  Status: {selected.status} · Version {selected.version}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    className="btn btn-secondary"
-                    disabled={
-                      busy ||
-                      selected.status === "published" ||
-                      !can("commerce.products.manage")
-                    }
-                    onClick={() => edit(selected)}
-                  >
-                    Edit product
-                  </button>
-                  <button
-                    className="btn btn-secondary"
-                    disabled={
-                      busy ||
-                      selected.status === "published" ||
-                      !can("commerce.inventory.manage")
-                    }
-                    onClick={() => {
-                      setOption({});
-                      setOpt(optionBlank());
-                    }}
-                  >
-                    Add variant / dated slot
-                  </button>
-                </div>
-                <h3 className="text-lg font-semibold">Variants, pricing & availability</h3>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,230px),1fr))",gap:16}}>
+                >
+                  Add variant / dated slot
+                </button>
+              </div>
+              <h3 className="text-lg font-semibold">
+                Variants, pricing & availability
+              </h3>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit,minmax(min(100%,230px),1fr))",
+                  gap: 16,
+                }}
+              >
                 {selected.options.map((o: any) => (
-                  <div style={{minWidth:0,overflowWrap:"anywhere",padding:18,border:"1px solid var(--border)",borderRadius:12,background:"var(--sidebar)"}} key={o.id}>
-                    <p style={{fontSize:16,fontWeight:700,marginBottom:8}}>{o.label}</p>
-                    <p style={{fontSize:12,color:"var(--text-secondary)",marginBottom:12}}>{o.sku}</p>
-                    <p style={{fontSize:20,color:"var(--accent)",fontWeight:600,marginBottom:12}}>{money(o.price_minor)}</p>
+                  <div
+                    style={{
+                      minWidth: 0,
+                      overflowWrap: "anywhere",
+                      padding: 18,
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      background: "var(--sidebar)",
+                    }}
+                    key={o.id}
+                  >
+                    <p
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 700,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {o.label}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-secondary)",
+                        marginBottom: 12,
+                      }}
+                    >
+                      {o.sku}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 20,
+                        color: "var(--accent)",
+                        fontWeight: 600,
+                        marginBottom: 12,
+                      }}
+                    >
+                      {money(o.price_minor)}
+                    </p>
                     <p>
                       {o.available} available · {o.sold} sold · capacity{" "}
                       {o.capacity}
@@ -366,238 +322,57 @@ export default function ConnectedCommerce() {
                     </button>
                   </div>
                 ))}
-                </div>
-                <h3 className="text-lg font-semibold">Publication control</h3>
-                <label className="block">
-                  Publication reason
-                  <input
-                    className="input w-full"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                  />
-                </label>
-                <button
-                  className="btn btn-primary"
-                  disabled={
-                    busy ||
-                    !reason.trim() ||
-                    !can("commerce.products.manage") ||
-                    !can(
-                      selected.status === "published"
-                        ? "commerce.unpublish"
-                        : "commerce.publish",
-                    )
-                  }
-                  onClick={() =>
-                    void run(async () => {
-                      setSelected(
-                        await api(
-                          "/admin/commerce/products/" +
-                            selected.id +
-                            "/actions",
-                          "POST",
-                          {
-                            action:
-                              selected.status === "published"
-                                ? "archive"
-                                : "publish",
-                            reason,
-                          },
-                          selected.version,
-                        ),
-                      );
-                      await refresh();
-                    })
-                  }
-                >
-                  {selected.status === "published"
-                    ? "Archive product"
-                    : "Publish product"}
-                </button>
-                <p className="text-sm text-muted">
-                  Archive before editing. Pending orders retain their saved
-                  price and dates.
-                </p>
-              </>
-            ) : (
-              <>
-                <h2 className="text-xl font-semibold break-words">
-                  Order {selected.id}
-                </h2>
-                <p>
-                  Status: {selected.effective_status} ·{" "}
-                  {money(selected.total_minor)}
-                </p>
-                {selected.admissions?.map((a: any) => (
-                  <div
-                    key={a.optionId}
-                    className="my-3 rounded border border-white/10 p-3 text-sm"
-                  >
-                    <strong>{a.title}</strong>
-                    <p>
-                      {a.startsAt} · {a.timezone}
-                    </p>
-                    {a.needsReview && (
-                      <p role="alert" className="text-amber-300">
-                        {a.reason}
-                      </p>
-                    )}
-                    <p>
-                      Admission codes stay private to the customer. Check-in is
-                      on the event editor.
-                    </p>
-                  </div>
-                ))}
-                {selected.items.map((i: any) => (
-                  <p key={i.option_id}>
-                    {i.quantity} × {i.name} · {i.option_label}
-                  </p>
-                ))}
-                <p>Delivery: {selected.delivery}</p>
-                {selected.address && (
-                  <p>
-                    {selected.address.name} · {selected.address.line1},{" "}
-                    {selected.address.parish} · {selected.address.phone}
-                  </p>
-                )}
-                {selected.payment && (
-                  <div className="my-4 rounded-xl border border-white/10 p-4 text-sm space-y-2">
-                    <p>
-                      Payment: {selected.payment.provider} ·{" "}
-                      {selected.payment.state}
-                    </p>
-                    <p>{selected.payment.note}</p>
-                    {selected.payment.refund && (
-                      <p>
-                        Refund: {selected.payment.refund.state} ·{" "}
-                        {money(selected.payment.refund.amount_minor)}
-                      </p>
-                    )}
-                    {selected.payment_hold && (
-                      <p role="status" className="text-amber-300">
-                        {selected.status === "refunded"
-                          ? "Refunded order: fulfillment, downloads and admission are unavailable."
-                          : "Payment hold: fulfillment, downloads and admission are blocked."}
-                      </p>
-                    )}
-                    {selected.payment.provider === "stripe-sandbox" && (
-                      <div className="flex flex-wrap gap-3">
-                        <button
-                          className="btn btn-secondary"
-                          disabled={busy || !can("commerce.orders.manage")}
-                          onClick={() =>
-                            void run(async () => {
-                              await api(
-                                "/admin/commerce/orders/" +
-                                  selected.id +
-                                  "/reconcile",
-                                "POST",
-                                {},
-                              );
-                              await detail(selected.id);
-                              await refresh();
-                            })
-                          }
-                        >
-                          Reconcile payment
-                        </button>
-                        <button
-                          className="btn btn-secondary"
-                          disabled={
-                            busy ||
-                            !reason.trim() ||
-                            !can("commerce.refunds.manage") ||
-                            selected.payment.state !== "succeeded" ||
-                            selected.payment.refundedMinor > 0 ||
-                            ["pending", "requesting"].includes(
-                              selected.payment.refund?.state,
-                            )
-                          }
-                          onClick={() => {
-                            if (
-                              !confirm(
-                                "Refund the full sandbox order? Tickets and downloads will be blocked. Physical stock will not be restocked automatically.",
-                              )
-                            )
-                              return;
-                            void run(async () => {
-                              await api(
-                                "/admin/commerce/orders/" +
-                                  selected.id +
-                                  "/refunds",
-                                "POST",
-                                { reason },
-                              );
-                              await detail(selected.id);
-                              await refresh();
-                            });
-                          }}
-                        >
-                          {selected.payment.refund?.state === "uncertain"
-                            ? "Retry refund request"
-                            : "Refund full order"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <label className="block">
-                  Action reason
-                  <input
-                    className="input w-full"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                  />
-                </label>
-                {["cancel", "fulfill"].map((action) => (
-                  <button
-                    key={action}
-                    className="btn btn-secondary mr-2"
-                    disabled={
-                      busy ||
-                      !reason.trim() ||
-                      !can(
-                        action === "cancel"
-                          ? "commerce.orders.manage"
-                          : "commerce.fulfillment.manage",
-                      ) ||
-                      (action === "cancel"
-                        ? selected.effective_status !== "awaiting_payment"
-                        : selected.status !== "paid" || selected.payment_hold)
-                    }
-                    onClick={() =>
-                      void run(async () => {
-                        setSelected(
-                          await api(
-                            "/admin/commerce/orders/" +
-                              selected.id +
-                              "/actions",
-                            "POST",
-                            { action, reason },
-                            selected.version,
-                          ),
-                        );
-                        await refresh();
-                      })
-                    }
-                  >
-                    {action === "cancel"
-                      ? "Cancel unpaid reservation"
-                      : "Mark fulfilled"}
-                  </button>
-                ))}
-                <h3 className="font-semibold">History</h3>
-                {selected.history.map((h: any, i: number) => (
-                  <p key={i}>
-                    {h.reason} · {new Date(h.created_at).toLocaleString()}
-                  </p>
-                ))}
-                <p className="text-sm text-muted">
-                  Payment status can only be established by verified provider
-                  transactions.
-                </p>
-              </>
-            )}
+              </div>
+              <h3 className="text-lg font-semibold">Publication control</h3>
+              <label className="block">
+                Publication reason
+                <input
+                  className="input w-full"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </label>
+              <button
+                className="btn btn-primary"
+                disabled={
+                  busy ||
+                  !reason.trim() ||
+                  !can("commerce.products.manage") ||
+                  !can(
+                    selected.status === "published"
+                      ? "commerce.unpublish"
+                      : "commerce.publish",
+                  )
+                }
+                onClick={() =>
+                  void run(async () => {
+                    setSelected(
+                      await api(
+                        "/admin/commerce/products/" + selected.id + "/actions",
+                        "POST",
+                        {
+                          action:
+                            selected.status === "published"
+                              ? "archive"
+                              : "publish",
+                          reason,
+                        },
+                        selected.version,
+                      ),
+                    );
+                    await refresh();
+                  })
+                }
+              >
+                {selected.status === "published"
+                  ? "Archive product"
+                  : "Publish product"}
+              </button>
+              <p className="text-sm text-muted">
+                Archive before editing. Pending orders retain their saved price
+                and dates.
+              </p>
+            </>
           </div>
         </Card>
       )}
