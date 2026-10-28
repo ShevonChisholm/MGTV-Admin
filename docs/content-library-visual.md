@@ -1,6 +1,6 @@
 # Content Library visual workspace
 
-28 October 2026. Implemented and verified locally; the stable preview has not been updated.
+28 October 2026. Implemented, verified locally and deployed to the stable disposable preview.
 
 ## Scope
 
@@ -32,4 +32,8 @@ Show seasons and season episodes use matching linked cards, retain their nested 
 
 This pass did not submit publication, archive, schedule or actual upload mutations, or sign in as a separate read-only staff account. Their existing server enforcement and handlers are retained; the UI permission conditions were reviewed. The prior fixed localhost customer-page link in the publication panel remains an existing environment-configuration follow-up, not an expanded part of this visual increment. Exhaustive keyboard/assistive-technology acceptance and measured CLS remain release QA.
 
-The API, customer app and stable hosted preview are unchanged. DRM and production email remain pending. Stop before another admin area.
+The API and customer app were unchanged by this increment. DRM and production email remain pending. Stop before another admin area.
+
+## Preview rollout
+
+Admin commit f748d25156ca8b5dfcb578e507c7f1793d13b969 deployed READY as dpl_4BkbrrRc9ttkk8HdKnefFXfbBxh8 at https://mgtv-admin.vercel.app. Hosted authenticated acceptance confirmed the 24-card Shows grid, Blue Mountain Diaries detail and three loaded artwork images, plus 390px containment (380px document width). No hosted record was edited. Previous rollback: 19aac5f / dpl_HDHERrEcBorABawiyr7DV7Kc84LP. Vercel calls the stable disposable preview its Production target; this is not a live-business deployment.
