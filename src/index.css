@@ -374,3 +374,13 @@ textarea.input { resize: vertical; min-height: 84px; }
 @media(max-width:1050px){.orders-stats{grid-template-columns:repeat(2,minmax(0,1fr));}.orders-detail-grid{grid-template-columns:minmax(0,1fr);}}
 @media(max-width:800px){.orders-desktop{display:none;}.orders-mobile{display:block;}.orders-panel{padding:18px;}.orders-pagination{align-items:flex-start;}.orders-pages{width:100%;justify-content:space-between;}}
 @media(max-width:420px){.orders-stat{padding:13px;gap:9px;}.orders-icon{width:34px;height:34px;border-radius:10px;}.orders-stat .orders-muted{font-size:10px;}.orders-stat strong{font-size:23px;}.orders-stats{gap:10px;}.orders-line{flex-wrap:wrap;}.orders-line>strong{margin-left:78px;}.orders-toolbar>.btn{flex:1;}.orders-pages{gap:6px;}.orders-pages .btn{font-size:11px;}}
+
+/* Keep paired date controls aligned with the rest of the Orders toolbar. */
+.orders-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:end;}
+.orders-filters>.btn{justify-self:start;}
+.orders-pagination .orders-field{white-space:nowrap;}
+.orders-table th:nth-child(4),.orders-table td:nth-child(4){text-align:right;}
+@media(max-width:650px){.orders-filters{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:420px){.orders-filters{grid-template-columns:minmax(0,1fr);}}
+
+.orders-field input[type="date"]{color-scheme:dark;}

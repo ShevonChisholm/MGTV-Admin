@@ -98,7 +98,22 @@ export default function CommerceOrdersWorkspace({
       >
         {options.map((v) => (
           <option key={v} value={v}>
-            {v === "all" ? "All " + label.toLowerCase() : v.replace(/_/g, " ")}
+            {v === "all"
+              ? ({
+                  status: "All statuses",
+                  kind: "All types",
+                  attention: "All orders",
+                }[key] ?? "All")
+              : ({
+                  newest: "Newest first",
+                  oldest: "Oldest first",
+                  amount_high: "Highest total",
+                  amount_low: "Lowest total",
+                  review: "Needs review",
+                  fulfillment: "Ready to fulfill",
+                  upcoming: "Upcoming bookings",
+                  ticket: "Event tickets",
+                }[v] ?? v.replace(/_/g, " "))}
           </option>
         ))}
       </select>
