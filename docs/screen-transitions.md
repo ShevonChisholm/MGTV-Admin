@@ -6,4 +6,6 @@ Customer transitions wrap only MainLayout and Auth form outlets; navigation/foot
 
 Both frontend type checks/builds, shared motion checks (reduced-motion suppression/live cancellation/cleanup/unsupported API), customer playback/session/route checks and representative customer/admin browser navigation passed. Customer paused real audio remained at 0:10 through navigation/history. Auth recovery and authenticated Commerce list/detail/history checks passed; 390px layouts had 380px document widths, with no captured browser errors. Physical OS motion toggling/native Safari is not claimed; reduced-motion branches were verified deterministically.
 
-Full scope and evidence: C:/Development/MGTV/docs/screen-transitions.md. Not deployed. DRM and production email remain pending. Stop before the next enhancement.
+Full scope and evidence: C:/Development/MGTV/docs/screen-transitions.md. Deployed to the existing disposable preview. DRM and production email remain pending. Stop before the next enhancement.
+
+28 October 2026 rollout: 0823f66 / Vercel dpl_EyxEUvgFNxo8k3d2VnvjrnxkG7u1 READY at https://mgtv-admin.vercel.app. Hosted customer navigation/feature playback and guest staff-auth isolation were checked during the audio/template release. Local authenticated acceptance remains recorded above. No next enhancement started.
