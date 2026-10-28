@@ -1,3 +1,4 @@
+import ScreenTransition from "./components/ScreenTransition";
 import ConnectedCareers from "./pages/ConnectedCareers";
 import ConnectedMedia from "./pages/ConnectedMedia";
 import PageErrorBoundary from "./components/PageErrorBoundary";
@@ -379,6 +380,7 @@ function Shell() {
                 interactive.
               </div>
             )}
+          <ScreenTransition screenKey={route.path}>
           <PageErrorBoundary resetKey={route.path}>
           {connected && page === "subscriptions" ? (
             <ConnectedSubscriptionTiers />
@@ -394,6 +396,7 @@ function Shell() {
             base.component
           )}
           </PageErrorBoundary>
+          </ScreenTransition>
         </main>
       </div>
       {pending && (
