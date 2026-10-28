@@ -1,9 +1,8 @@
-import CaptionManager from "./CaptionManager";
+import { MediaLibraryGrid } from "./MediaLibraryView";
 import React, { useEffect, useRef, useState } from "react";
 import { api, upload } from "../api/client";
 import { useDirtyGuard } from "../router";
 import { Modal } from "../ui";
-import LoadingState, { ErrorState } from "./LoadingState";
 export type MediaItem = {
   id: string;
   versionId: string;
@@ -22,197 +21,7 @@ export function MediaLibraryList({
   kind?: string;
   onSelect?: (item: MediaItem) => void;
 }) {
-  const [q, setQ] = useState(""),
-    [query, setQuery] = useState(""),
-    [items, setItems] = useState<MediaItem[]>([]),
-    [cursor, setCursor] = useState<string | null>(null),
-    [busy, setBusy] = useState(true),
-    [error, setError] = useState(""),
-    [revision, setRevision] = useState(0);
-  const generation = useRef(0);
-  useEffect(() => {
-    const token = ++generation.current;
-    setBusy(true);
-    setError("");
-    setItems([]);
-    setCursor(null);
-    api(
-      "/admin/media?" +
-        new URLSearchParams({
-          q: query,
-          ...(kind ? { kind } : {}),
-          ...(onSelect ? { state: "ready" } : {}),
-        }),
-    )
-      .then((page) => {
-        if (token === generation.current) {
-          setItems(page.items);
-          setCursor(page.nextCursor);
-        }
-      })
-      .catch((e) => {
-        if (token === generation.current) setError(e.message);
-      })
-      .finally(() => {
-        if (token === generation.current) setBusy(false);
-      });
-    return () => {
-      generation.current++;
-    };
-  }, [query, kind, revision, !!onSelect]);
-  async function more() {
-    const token = generation.current;
-    setBusy(true);
-    setError("");
-    try {
-      const page = await api(
-        "/admin/media?" +
-          new URLSearchParams({
-            q: query,
-            ...(kind ? { kind } : {}),
-            ...(onSelect ? { state: "ready" } : {}),
-            cursor: cursor!,
-          }),
-      );
-      if (token === generation.current) {
-        setItems((v) => [...v, ...page.items]);
-        setCursor(page.nextCursor);
-      }
-    } catch (e) {
-      if (token === generation.current)
-        setError(e instanceof Error ? e.message : "Unable to load files.");
-    } finally {
-      if (token === generation.current) setBusy(false);
-    }
-  }
-  return (
-    <div style={{ display: "grid", gap: 14, minWidth: 0 }}>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <label style={{ flex: "1 1 180px" }}>
-          File name
-          <input
-            className="input"
-            value={q}
-            maxLength={200}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </label>
-        <button
-          type="button"
-          className="btn"
-          disabled={busy}
-          onClick={() => {
-            setQuery(q.trim());
-            setRevision((v) => v + 1);
-          }}
-        >
-          Search files
-        </button>
-      </div>
-      {error && (
-        <ErrorState message={error} onRetry={() => setRevision((v) => v + 1)} />
-      )}
-      {busy && !items.length ? (
-        <LoadingState label="Loading media library…" variant="cards" />
-      ) : (
-        <ul
-          style={{
-            listStyle: "none",
-            padding: 0,
-            margin: 0,
-            display: "grid",
-            gap: 10,
-          }}
-        >
-          {items.map((item) => (
-            <li
-              key={item.id}
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                padding: 12,
-                overflowWrap: "anywhere",
-              }}
-            >
-              <strong>{item.filename}</strong>
-              <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                {item.kind} · {item.state.replace(/_/g, " ")} ·{" "}
-                {(item.byteSize / 1048576).toFixed(1)} MB
-                {item.durationSeconds != null
-                  ? ` · ${item.durationSeconds}s`
-                  : ""}
-                {item.width ? ` · ${item.width} × ${item.height}` : ""}
-              </p>
-              {onSelect && (
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={busy || item.state !== "ready"}
-                  onClick={() => onSelect(item)}
-                >
-                  Use this file
-                </button>
-              )}
-              {!onSelect && <MediaUsage id={item.id} />}
-              {!onSelect && item.kind === "video" && item.state === "ready" && <CaptionManager mediaId={item.id} />}
-            </li>
-          ))}
-        </ul>
-      )}
-      {!busy && !error && !items.length && (
-        <p>
-          No matching files. Upload from the intended entity’s editor, then save
-          its draft to retain the attachment.
-        </p>
-      )}
-      {cursor && (
-        <button
-          type="button"
-          className="btn"
-          disabled={busy}
-          onClick={() => void more()}
-        >
-          {busy ? "Loading…" : "Load more files"}
-        </button>
-      )}
-    </div>
-  );
-}
-function MediaUsage({ id }: { id: string }) {
-  const [text, setText] = useState(""),
-    [busy, setBusy] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        className="btn btn-sm"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          try {
-            const page = await api(`/admin/media/${id}/usage`);
-            setText(
-              (page.brandingRetained ? "Retained for an immutable branding review. " : "") + (page.items.length
-                ? page.items
-                    .map((x: any) => `${x.resourceType}: ${x.label}`)
-                    .join(" · ") +
-                    (page.nextCursor ? " · More references exist." : "")
-                : "No saved content references. Unsaved editor selections are not included."),
-            );
-          } catch (e) {
-            setText(e instanceof Error ? e.message : "Unable to load usage.");
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        Check saved usage
-      </button>
-      <p role="status" style={{ fontSize: 13 }}>
-        {text}
-      </p>
-    </>
-  );
+  return <MediaLibraryGrid kind={kind} onSelect={onSelect} />;
 }
 export default function MediaAttachment({
   label,
@@ -312,7 +121,11 @@ export default function MediaAttachment({
       }
     } catch (e) {
       if (alive.current) {
-        setError(e instanceof Error && e.message !== "Failed to fetch" ? e.message : "Upload interrupted. Check your connection, then select the same file to retry. Your previous selection is unchanged.");
+        setError(
+          e instanceof Error && e.message !== "Failed to fetch"
+            ? e.message
+            : "Upload interrupted. Check your connection, then select the same file to retry. Your previous selection is unchanged.",
+        );
         setProgress("");
       }
     } finally {
@@ -348,14 +161,21 @@ export default function MediaAttachment({
           : "No file selected"}
       </p>
       <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-        {selectionHint ?? "Selection belongs to this draft only after you save. Replacing or removing it does not delete the library file."}
+        {selectionHint ??
+          "Selection belongs to this draft only after you save. Replacing or removing it does not delete the library file."}
       </p>
       <label style={{ fontSize: 13 }}>
         Upload {kind}
         <input
           type="file"
           aria-label={`Upload ${label}`}
-          style={{display:"block",width:"100%",maxWidth:"100%",minWidth:0,boxSizing:"border-box"}}
+          style={{
+            display: "block",
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
+          }}
           disabled={disabled || busy || !canUpload}
           accept={
             kind === "image"
