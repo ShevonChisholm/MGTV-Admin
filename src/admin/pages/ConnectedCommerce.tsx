@@ -1,3 +1,5 @@
+import CommerceProductGrid from "../components/CommerceProductGrid";
+import CommerceProductOverview from "../components/CommerceProductOverview";
 import ProductGalleryEditor from "../components/ProductGalleryEditor";
 import MediaAttachment from "../components/MediaAttachment";
 import LoadingState from "../components/LoadingState";
@@ -5,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { Card, Modal } from "../ui";
 import StaffAuth from "./StaffAuth";
-import { useDirtyGuard } from "../router";
+import { useDirtyGuard, useRouter } from "../router";
 const blank = () => ({
   name: "",
   description: "",
@@ -32,6 +34,8 @@ const money = (n: number) =>
     currencyDisplay: "code",
   }).format(n / 100);
 export default function ConnectedCommerce() {
+  const { route, navigate } = useRouter();
+  const productId = route.parts[0] === "products" ? route.parts[1] : undefined;
   const [session, setSession] = useState<any>(null),
     [loaded, setLoaded] = useState(false),
     [tab, setTab] = useState("products"),
@@ -75,7 +79,36 @@ export default function ConnectedCommerce() {
   useEffect(() => {
     void start();
   }, []);
+  useEffect(() => {
+    if (!loaded || !session) return;
+    let active = true;
+    setSelected(null);
+    setReason("");
+    if (productId) {
+      setTab("products");
+      setBusy(true);
+      setError("");
+      api("/admin/commerce/products/" + encodeURIComponent(productId))
+        .then((p) => {
+          if (active) setSelected(p);
+        })
+        .catch((e) => {
+          if (active) setError(e.message);
+        })
+        .finally(() => {
+          if (active) setBusy(false);
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, [productId, loaded, session]);
   async function detail(id: string) {
+    if (tab === "products") {
+      navigate("/admin/commerce/products/" + id);
+      return;
+    }
+
     await run(async () => {
       setSelected(await api("/admin/commerce/" + tab + "/" + id));
       setReason("");
@@ -109,25 +142,34 @@ export default function ConnectedCommerce() {
     );
   return (
     <div className="page-pad">
-      <div className="flex flex-wrap gap-2 mb-5">
-        {["products", "orders"].map((t) => (
-          <button
-            key={t}
-            disabled={busy}
-            className={"btn " + (tab === t ? "btn-primary" : "btn-secondary")}
-            onClick={() =>
-              void run(async () => {
-                setItems([]);
-                setTab(t);
-                setSelected(null);
-                await refresh(t);
-              })
-            }
-          >
-            {t === "products" ? "Products & Inventory" : "Orders & Bookings"}
-          </button>
-        ))}
-      </div>
+      {productId ? (
+        <button
+          className="btn btn-secondary mb-5"
+          onClick={() => navigate("/admin/commerce")}
+        >
+          ← All products
+        </button>
+      ) : (
+        <div className="flex flex-wrap gap-2 mb-5">
+          {["products", "orders"].map((t) => (
+            <button
+              key={t}
+              disabled={busy}
+              className={"btn " + (tab === t ? "btn-primary" : "btn-secondary")}
+              onClick={() =>
+                void run(async () => {
+                  setItems([]);
+                  setTab(t);
+                  setSelected(null);
+                  await refresh(t);
+                })
+              }
+            >
+              {t === "products" ? "Products & Inventory" : "Orders & Bookings"}
+            </button>
+          ))}
+        </div>
+      )}
       <p className="text-sm text-muted mb-5">
         Jamaica · JMD · Development store. Test tax 15%; delivery J$750;
         collection free. Stripe sandbox checkout; no real money moves.
@@ -137,7 +179,7 @@ export default function ConnectedCommerce() {
           {error}
         </p>
       )}
-      {tab === "products" && (
+      {tab === "products" && !productId && (
         <button
           className="btn btn-primary mb-4"
           disabled={busy || !can("commerce.products.manage")}
@@ -146,91 +188,112 @@ export default function ConnectedCommerce() {
           Add product
         </button>
       )}
-      <Card>
-        <div style={{ overflowX: "auto" }}>
-          <table className="table" style={{ width: "100%" }}>
-            <thead>
-              <tr>
-                {(tab === "products"
-                  ? ["Product", "Type", "Status", "Options", "Action"]
-                  : ["Order", "Status", "Total", "Created", "Action"]
-                ).map((x) => (
-                  <th key={x}>{x}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((p) => (
-                <tr key={p.id}>
-                  {tab === "products" ? (
-                    <>
-                      <td>{p.name}</td>
-                      <td>{p.kind}</td>
+      {!productId &&
+        (tab === "products" ? (
+          <CommerceProductGrid items={items} />
+        ) : (
+          <Card>
+            <div style={{ overflowX: "auto" }}>
+              <table className="table" style={{ width: "100%" }}>
+                <thead>
+                  <tr>
+                    {(tab === "products"
+                      ? ["Product", "Type", "Status", "Options", "Action"]
+                      : ["Order", "Status", "Total", "Created", "Action"]
+                    ).map((x) => (
+                      <th key={x}>{x}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((p) => (
+                    <tr key={p.id}>
+                      {tab === "products" ? (
+                        <>
+                          <td>{p.name}</td>
+                          <td>{p.kind}</td>
+                          <td>
+                            {p.status}
+                            {p.payment_hold && (
+                              <span className="block text-amber-300 text-xs">
+                                {p.status === "refunded"
+                                  ? "Refund completed"
+                                  : "Payment / refund review"}
+                              </span>
+                            )}
+                            {p.ticketReviewRequired && (
+                              <span className="block text-amber-300 text-xs">
+                                Event booking needs review
+                              </span>
+                            )}
+                          </td>
+                          <td>{p.options.length}</td>
+                        </>
+                      ) : (
+                        <>
+                          <td style={{ overflowWrap: "anywhere" }}>{p.id}</td>
+                          <td>
+                            {p.status}
+                            {p.payment_hold && (
+                              <span className="block text-amber-300 text-xs">
+                                {p.status === "refunded"
+                                  ? "Refund completed"
+                                  : "Payment / refund review"}
+                              </span>
+                            )}
+                            {p.ticketReviewRequired && (
+                              <span className="block text-amber-300 text-xs">
+                                Event booking needs review
+                              </span>
+                            )}
+                          </td>
+                          <td>{money(p.total_minor)}</td>
+                          <td>{new Date(p.created_at).toLocaleDateString()}</td>
+                        </>
+                      )}
                       <td>
-                        {p.status}
-                        {p.payment_hold && (
-                          <span className="block text-amber-300 text-xs">
-                            {p.status === "refunded"
-                              ? "Refund completed"
-                              : "Payment / refund review"}
-                          </span>
-                        )}
-                        {p.ticketReviewRequired && (
-                          <span className="block text-amber-300 text-xs">
-                            Event booking needs review
-                          </span>
-                        )}
+                        <button
+                          className="btn btn-secondary"
+                          disabled={busy}
+                          onClick={() => void detail(p.id)}
+                        >
+                          Open
+                        </button>
                       </td>
-                      <td>{p.options.length}</td>
-                    </>
-                  ) : (
-                    <>
-                      <td style={{ overflowWrap: "anywhere" }}>{p.id}</td>
-                      <td>
-                        {p.status}
-                        {p.payment_hold && (
-                          <span className="block text-amber-300 text-xs">
-                            {p.status === "refunded"
-                              ? "Refund completed"
-                              : "Payment / refund review"}
-                          </span>
-                        )}
-                        {p.ticketReviewRequired && (
-                          <span className="block text-amber-300 text-xs">
-                            Event booking needs review
-                          </span>
-                        )}
-                      </td>
-                      <td>{money(p.total_minor)}</td>
-                      <td>{new Date(p.created_at).toLocaleDateString()}</td>
-                    </>
-                  )}
-                  <td>
-                    <button
-                      className="btn btn-secondary"
-                      disabled={busy}
-                      onClick={() => void detail(p.id)}
-                    >
-                      Open
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!items.length && <p className="p-5">No {tab} yet.</p>}
-        </div>
-      </Card>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!items.length && <p className="p-5">No {tab} yet.</p>}
+            </div>
+          </Card>
+        ))}
+      {productId && busy && !selected && (
+        <LoadingState label="Loading product…" variant="cards" />
+      )}
       {selected && (
         <Card>
           <div className="p-5 space-y-4">
             {tab === "products" ? (
               <>
-                <h2 className="text-xl font-semibold break-words">
-                  {selected.name}
-                </h2>
-                <p>{selected.description}</p>
-                <ProductGalleryEditor key={selected.id+":"+selected.version} product={selected} permissions={session.permissions} onSaved={async()=>{setSelected(await api("/admin/commerce/products/"+selected.id));await refresh();}}/>
+                <CommerceProductOverview
+                  key={selected.id + ":" + selected.version}
+                  product={selected}
+                />
+                <h3 className="text-lg font-semibold">
+                  Gallery & product management
+                </h3>
+                <ProductGalleryEditor
+                  key={selected.id + ":" + selected.version}
+                  product={selected}
+                  permissions={session.permissions}
+                  onSaved={async () => {
+                    setSelected(
+                      await api("/admin/commerce/products/" + selected.id),
+                    );
+                    await refresh();
+                  }}
+                />
                 <p>
                   Status: {selected.status} · Version {selected.version}
                 </p>
@@ -261,11 +324,13 @@ export default function ConnectedCommerce() {
                     Add variant / dated slot
                   </button>
                 </div>
+                <h3 className="text-lg font-semibold">Variants, pricing & availability</h3>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,230px),1fr))",gap:16}}>
                 {selected.options.map((o: any) => (
-                  <div className="border-t py-3" key={o.id}>
-                    <p>
-                      {o.label} · {o.sku} · {money(o.price_minor)}
-                    </p>
+                  <div style={{minWidth:0,overflowWrap:"anywhere",padding:18,border:"1px solid var(--border)",borderRadius:12,background:"var(--sidebar)"}} key={o.id}>
+                    <p style={{fontSize:16,fontWeight:700,marginBottom:8}}>{o.label}</p>
+                    <p style={{fontSize:12,color:"var(--text-secondary)",marginBottom:12}}>{o.sku}</p>
+                    <p style={{fontSize:20,color:"var(--accent)",fontWeight:600,marginBottom:12}}>{money(o.price_minor)}</p>
                     <p>
                       {o.available} available · {o.sold} sold · capacity{" "}
                       {o.capacity}
@@ -301,6 +366,8 @@ export default function ConnectedCommerce() {
                     </button>
                   </div>
                 ))}
+                </div>
+                <h3 className="text-lg font-semibold">Publication control</h3>
                 <label className="block">
                   Publication reason
                   <input

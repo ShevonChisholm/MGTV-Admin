@@ -302,3 +302,11 @@ textarea.input { resize: vertical; min-height: 84px; }
 
 .ui-modal{min-width:0;overflow-wrap:anywhere}.ui-modal :where(fieldset,.grid-2>*,.grid-3>*,.scroll-x){min-width:0;max-width:100%}.ui-modal :where(input,select,textarea){max-width:100%;min-width:0;box-sizing:border-box}.ui-modal .scroll-x{overflow-x:auto}.ui-modal .btn{max-width:100%;white-space:normal;line-height:1.35}
 .admin-workspace [role=tablist]{min-width:0;max-width:100%;overflow-x:auto}.editor-layout>*{min-width:0}
+
+/* Commerce product collection: visual navigation and contained detail gallery. */
+.commerce-product-card {display:block;min-width:0;overflow:hidden;border:1px solid var(--border);border-radius:18px 0 18px 0;background:var(--card);color:var(--text-primary);text-decoration:none;transition:border-color .18s,box-shadow .18s;}
+.commerce-product-card:hover,.commerce-product-card:focus-visible {border-color:var(--accent);box-shadow:0 8px 24px #0004;}
+.commerce-product-card:focus-visible {outline:2px solid var(--accent);outline-offset:4px;}
+.commerce-product-overview {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;margin-bottom:28px;}
+@media(max-width:700px){.commerce-product-overview {grid-template-columns:minmax(0,1fr);gap:20px;}}
+@media(prefers-reduced-motion:reduce){.commerce-product-card{transition:none;}}
