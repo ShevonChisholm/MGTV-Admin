@@ -1,6 +1,6 @@
 # Dashboard and Analytics visual review
 
-29 October 2026. Local implementation; not deployed to the hosted preview.
+29 October 2026. Deployed and hosted-verified at the existing disposable preview. See analytics-dashboard-preview-release.json for the exact commit, deployment and rollback reference.
 
 ## Presentation
 
@@ -21,7 +21,7 @@
 - Synthetic audience option is hidden in this local review because development analytics is disabled there. Source isolation and disabled-source rejection passed the API tests. Permission-denied and entirely empty-report browser states were not simulated; API tests cover authorization and source rejection, and zero-day/no-match states were inspected in-browser.
 - One reload overlapped replacement of the local dist assets during a build; reloading the completed build resolved it. This was a review-server rebuild interruption, not a hosted deployment failure.
 
-Evidence (local Codex visualization folder): analytics-charts-desktop.png; analytics-mobile-retention.png. No hosted release is claimed.
+Evidence (local Codex visualization folder): analytics-charts-desktop.png; analytics-mobile-retention.png. Hosted release is READY and verified; hosted evidence: analytics-hosted-desktop.png and analytics-hosted-phone.png.
 
 ## Deferred
 

@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-29",
+  "environment": "existing disposable preview",
+  "status": "READY and hosted verified",
+  "admin": {
+    "commit": "25138c6f2bb9aa0c6dd03d9e7cd6ac8e8e5eadd1",
+    "deployment": "dpl_GyWDRrN5RRyPBHFGSyGHrzXbW1JY",
+    "url": "https://mgtv-admin.vercel.app",
+    "rollbackDeployment": "dpl_44aXcMVFrJc9sapFQsVsLk2Hz9Uk"
+  },
+  "scope": [
+    "Dashboard visual operational summaries and recent activity",
+    "Analytics inspectable audience charts and searchable tables"
+  ],
+  "checks": {
+    "typescript": "passed before release",
+    "build": "passed; existing bundle-size warning",
+    "analyticsIntegration": "8 passed, 0 failed; isolated local database before release",
+    "hosted": [
+      "normal preview staff session",
+      "real audience/operations data",
+      "14/30/90-day filtering",
+      "chart metric and keyboard date inspection",
+      "daily pagination",
+      "top-title search",
+      "recent-activity search",
+      "Dashboard/Analytics navigation"
+    ],
+    "hostedWidths": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "pageOverflow": false,
+    "capturedBrowserWarningsOrErrors": []
+  },
+  "changesToDataOrPermissions": false,
+  "apiDeployment": false,
+  "pending": [
+    "DRM",
+    "production email",
+    "existing workflow/API gaps",
+    "subscriber growth and commercial revenue reporting",
+    "partner financial execution"
+  ],
+  "nextVisualArea": "Contact & Newsletter; not started",
+  "evidence": [
+    "analytics-hosted-desktop.png",
+    "analytics-hosted-phone.png"
+  ]
+}
