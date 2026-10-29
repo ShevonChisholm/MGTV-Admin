@@ -26,3 +26,6 @@ This was a presentation-only pass with real browser workflow checks, not a new b
 
 
 Combined-release follow-up: episode selection now uses the shared show/season hierarchy selector, verified with Kingston Stories season-one episodes. Temporary selection was discarded. Categories & Discovery visuals have since been completed; see discovery-visual.md. The original local-only status above records its initial checkpoint; deployment evidence is recorded separately after rollout.
+
+
+Preview rollout complete: commit 6910a5f / dpl_GHS7DgvTRAEB6JaFj9Hk4hP8n9Pm is READY at https://mgtv-admin.vercel.app. See homepage-discovery-preview-release.json for exact hosted checks and rollback reference. No hosted records were saved or published during acceptance. DRM and production email remain pending; stop before Notifications.

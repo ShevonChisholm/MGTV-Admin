@@ -23,3 +23,6 @@ One real local association save retained the existing six Staff Pick targets unc
 This is not a backend integration-suite rerun or an exhaustive accessibility audit. Existing category DTO accepts at most eleven included content types, while the catalog now has twelve; an all-types category remains an existing contract follow-up rather than a schema change in this visual increment. Homepage curation still lacks Podcasts as a supported content kind. These are separate from the completed visual pass.
 
 DRM and production email remain pending. Stop before Notifications or another admin area. Deployment IDs and hosted acceptance are recorded separately after rollout.
+
+
+Preview rollout complete: commit 6910a5f / dpl_GHS7DgvTRAEB6JaFj9Hk4hP8n9Pm is READY at https://mgtv-admin.vercel.app. See homepage-discovery-preview-release.json for exact hosted checks and rollback reference. No hosted records were saved or published during acceptance. DRM and production email remain pending; stop before Notifications.

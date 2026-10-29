@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-29",
+  "environment": "existing disposable preview",
+  "url": "https://mgtv-admin.vercel.app",
+  "areas": [
+    "Homepage & Featured Content",
+    "Categories & Discovery"
+  ],
+  "commit": "6910a5f707f43a7b51dd1e5c5dae8064734b93bc",
+  "deployment": "dpl_GHS7DgvTRAEB6JaFj9Hk4hP8n9Pm",
+  "state": "READY",
+  "priorDeployment": "dpl_DZ8AfJj59RfjsgAuv6TdA1RiZLQC",
+  "apiChanged": false,
+  "customerChanged": false,
+  "migrations": [],
+  "permissionsGranted": [],
+  "providerUploads": 0,
+  "hostedDataMutations": 0,
+  "hostedChecks": [
+    "Authenticated category grid and saved Music overview/editor",
+    "Reason-required save disabled; editor cancelled",
+    "Podcast assignment covers loaded 10/10",
+    "Episode show/season selection resolved two Kingston Stories episodes",
+    "Category editor and association hierarchy contained at 320/390/768/1440",
+    "Homepage saved canvas: 3 hero picks, 12 sections, saved/published version 5 unchanged",
+    "Homepage lead artwork eager and ready; 38 artwork images ready",
+    "Homepage canvas contained at 320/390/768/1440",
+    "Saved customer-layout preview resolved real available content",
+    "Fresh server publication review; reason-required final confirmation opened and cancelled",
+    "Browser error/warning logs empty",
+    "API and admin health 200; guest Homepage/Discovery management endpoints 401"
+  ],
+  "pending": [
+    "DRM",
+    "Production email"
+  ],
+  "stopBefore": "Notifications"
+}
