@@ -37,6 +37,7 @@
   },
   "changesToDataOrPermissions": false,
   "apiDeployment": false,
+  "aliasEvidence": "READY deployment includes stable alias; stable browser served new screens. Final redundant get_alias timed out.",
   "pending": [
     "DRM",
     "production email",
