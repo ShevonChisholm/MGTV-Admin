@@ -1,3 +1,5 @@
+import PartnershipLinks from "./components/PartnershipLinks";
+import ConnectedPartnerships from "./pages/ConnectedPartnerships";
 import ConnectedPodcasts from "./pages/ConnectedPodcasts";
 import ScreenTransition from "./components/ScreenTransition";
 import ConnectedCareers from "./pages/ConnectedCareers";
@@ -50,6 +52,7 @@ interface PageMeta {
 }
 
 const pages: Record<string, PageMeta> = {
+ partnerships:{breadcrumb:["Portal","Partners & Events","Partnerships"],title:"Partnerships",description:"Service capabilities, tailored offerings, agreements and fulfillment.",component:<ConnectedPartnerships/>},
  podcasts:{breadcrumb:["Portal","Content","Podcasts"],title:"Podcasts",description:"Shape conversations, organize audio and video episodes, and publish with explicit permissions.",component:<ConnectedPodcasts/>},
  careers:{breadcrumb:["Portal","Operations","Careers"],title:"Careers",description:"Create opportunities, review saved vacancies and manage external applications.",component:<ConnectedCareers/>},
  onboarding:{breadcrumb:["Portal","Operations","Staff Onboarding"],title:"Staff Onboarding",description:"Guide staff through invitations, secure setup, orientation and explicit access review.",component:<ConnectedOnboarding/>},
@@ -174,6 +177,7 @@ const pages: Record<string, PageMeta> = {
 };
 
 const WIRED = new Set([
+ "partnerships",
   "podcasts",
  "careers",
  "onboarding",
@@ -402,6 +406,7 @@ function Shell() {
             base.component
           )}
           </PageErrorBoundary>
+          {connected && <PartnershipLinks/>}
           </ScreenTransition>
         </main>
       </div>
