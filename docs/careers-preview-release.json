@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-29",
+  "status": "READY and hosted verified",
+  "environment": "existing disposable preview",
+  "admin": {
+    "commit": "50a19f7c11a17a6e41806abfd320cbded3ec9757",
+    "deployment": "dpl_z8KzhCEis4oDQKzb3RKFyHF2JGbN",
+    "url": "https://mgtv-admin.vercel.app/admin/careers",
+    "rollbackDeployment": "dpl_7S5NfWLDH7Yu619SCYizdc7exzDo"
+  },
+  "checks": {
+    "preRelease": "TypeScript/build and 11 isolated Careers API tests passed",
+    "hosted": [
+      "normal preview staff access",
+      "directory, saved overview, editor, public snapshot, history and new-vacancy views",
+      "24 responsive containment checks at 320/390/768/1440px",
+      "submitted role search returned one matching editor",
+      "required fields blocked empty new-vacancy creation"
+    ],
+    "pageOverflow": false,
+    "capturedBrowserWarningsOrErrors": []
+  },
+  "hostedDataMutations": false,
+  "apiDeployment": false,
+  "pending": [
+    "DRM",
+    "production email"
+  ],
+  "nextArea": "Platform Settings visual improvements authorized by user"
+}

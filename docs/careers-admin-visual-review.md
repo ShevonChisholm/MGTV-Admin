@@ -1,6 +1,6 @@
 # Careers admin visual review
 
-29 October 2026. Local implementation and verification; preview deployment pending.
+29 October 2026. Deployed and hosted-verified. See careers-preview-release.json for release and rollback details.
 
 ## Presentation
 
@@ -28,4 +28,6 @@ Evidence in the local Codex visualization folder: careers-directory-desktop.png,
 
 ## Deferred
 
-Preview deployment is pending. DRM, production email and other existing workflow/API or launch decisions remain separate. Stop before Platform Settings.
+Preview deployment is READY and hosted-verified. DRM, production email and other existing workflow/API or launch decisions remain separate. Stop before Platform Settings.
+
+Hosted verification: all 24 responsive checks passed with no page overflow or captured browser errors. Search and empty-creation validation passed. No hosted mutations or publication commands. Evidence: careers-hosted-directory.png.
