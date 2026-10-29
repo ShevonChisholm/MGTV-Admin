@@ -12,6 +12,7 @@ const tabs = [
   { kind: "region", label: "Regions & Languages" },
 ];
 const kinds = [
+    "podcast",
     "movie",
     "show",
     "episode",

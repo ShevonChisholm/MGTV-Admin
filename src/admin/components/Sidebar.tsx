@@ -17,6 +17,7 @@ const groups = [
       { id: "content", label: "Content Library", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> },
       { id: "lifestyle", label: "Lifestyle & Culture", badge: null, icon: <span aria-hidden>✦</span> },
       { id: "news", label: "News & Articles", badge: null, icon: <span aria-hidden>▤</span> },
+      {id:"podcasts",label:"Podcasts",badge:null,icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8"/></svg>},
       { id: "music-library", label: "Artists, Albums & Playlists", badge: null, icon: <span aria-hidden>♫</span> },
       { id: "media", label: "Media Library", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 2v20"/><path d="M3 6.5h4"/><path d="M3 12h4"/><path d="M3 17.5h4"/><path d="M17 8l-5 4 5 4V8z"/></svg> },
       { id: "homepage", label: "Homepage & Featured", badge: null, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },

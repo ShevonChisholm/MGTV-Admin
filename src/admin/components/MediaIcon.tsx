@@ -1,4 +1,5 @@
 const paths: Record<string, string> = {
+  podcast:"M9 5a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0V5ZM5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8",
   brand: "M12 3 3 8l9 5 9-5-9-5ZM3 12l9 5 9-5M3 16l9 5 9-5",
   campaign: "M3 9h5l12-5v16L8 15H3V9Zm5 6 2 6H6l-2-6",
   calendar: "M4 5h16v16H4zM8 3v4m8-4v4M4 10h16",

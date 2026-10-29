@@ -1,3 +1,4 @@
+import ConnectedPodcasts from "./pages/ConnectedPodcasts";
 import ScreenTransition from "./components/ScreenTransition";
 import ConnectedCareers from "./pages/ConnectedCareers";
 import ConnectedMedia from "./pages/ConnectedMedia";
@@ -49,6 +50,7 @@ interface PageMeta {
 }
 
 const pages: Record<string, PageMeta> = {
+ podcasts:{breadcrumb:["Portal","Content","Podcasts"],title:"Podcasts",description:"Shape conversations, organize audio and video episodes, and publish with explicit permissions.",component:<ConnectedPodcasts/>},
  careers:{breadcrumb:["Portal","Operations","Careers"],title:"Careers",description:"Create opportunities, review saved vacancies and manage external applications.",component:<ConnectedCareers/>},
  onboarding:{breadcrumb:["Portal","Operations","Staff Onboarding"],title:"Staff Onboarding",description:"Guide staff through invitations, secure setup, orientation and explicit access review.",component:<ConnectedOnboarding/>},
  access:{breadcrumb:["Portal","Operations","Roles & Permissions"],title:"Roles, Permissions & Resources",description:"Manage registered capabilities, reusable roles and explicit staff access.",component:<ConnectedAccess/>},
@@ -172,6 +174,7 @@ const pages: Record<string, PageMeta> = {
 };
 
 const WIRED = new Set([
+  "podcasts",
  "careers",
  "onboarding",
  "access",
