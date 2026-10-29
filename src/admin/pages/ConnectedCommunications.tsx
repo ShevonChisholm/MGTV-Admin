@@ -2,6 +2,20 @@ import LoadingState from "../components/LoadingState";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
 import { Card, Modal } from "../ui";
+import MediaIcon from "../components/MediaIcon";
+import {
+  CommunicationsHero,
+  CommunicationsSnapshot,
+  CommunicationsDirectory,
+  CommunicationFacts,
+  CommunicationHistory,
+  CommunicationDelivery,
+  NewsletterPreview,
+  communicationsDate,
+  communicationsNames,
+  communicationsIcons,
+} from "../components/CommunicationsVisual";
+import "./communications.css";
 import StaffAuth from "./StaffAuth";
 import { useDirtyGuard } from "../router";
 type Tab = "contact" | "subscribers" | "campaigns";
@@ -28,6 +42,7 @@ export default function ConnectedCommunications() {
     [next, setNext] = useState<string | null>(null),
     [status, setStatus] = useState(""),
     [query, setQuery] = useState(""),
+    [search, setSearch] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
@@ -38,6 +53,17 @@ export default function ConnectedCommunications() {
     [creating, setCreating] = useState(false),
     [confirm, setConfirm] = useState(false),
     [conflict, setConflict] = useState(false);
+  const detailHeading = useRef<HTMLHeadingElement>(null),
+    searchField = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (record || creating) detailHeading.current?.focus();
+  }, [record?.id, creating]);
+  function closeDetail() {
+    if (busy) return;
+    if (dirty && !window.confirm("Discard unsaved changes?")) return;
+    clear();
+    requestAnimationFrame(() => searchField.current?.focus());
+  }
   const generation = useRef(0),
     retry = useRef({ body: "", key: crypto.randomUUID() });
   const base =
@@ -190,13 +216,23 @@ export default function ConnectedCommunications() {
     );
   return (
     <div
-      className="communications-workspace"
+      className="communications-workspace av-workspace"
       style={{ display: "grid", gap: 20, minWidth: 0 }}
     >
-      <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>
-        Contact replies and newsletters are delivered only to the private
-        development inbox. Subscribers must confirm their own email address.
-      </p>
+      <CommunicationsHero tab={tab} />
+      <aside className="cm-delivery-notice">
+        <span className="cm-icon">
+          <MediaIcon name="lock" />
+        </span>
+        <div>
+          <strong>Private development delivery</strong>
+          <p>
+            Contact replies and newsletters go only to the private development
+            inbox. Subscribers confirm their own address; production email
+            remains pending.
+          </p>
+        </div>
+      </aside>
       <div
         role="tablist"
         aria-label="Communications"
@@ -206,16 +242,44 @@ export default function ConnectedCommunications() {
           <button
             key={t}
             role="tab"
+            disabled={busy}
             aria-selected={tab === t}
+            tabIndex={tab === t ? 0 : -1}
+            onKeyDown={(e) => {
+              const tabs = ["contact", "subscribers", "campaigns"] as Tab[];
+              const position = tabs.indexOf(t);
+              const step =
+                e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+              if (!step || busy) return;
+              e.preventDefault();
+              if (dirty && !window.confirm("Discard unsaved changes?")) return;
+              const target =
+                tabs[(position + step + tabs.length) % tabs.length];
+              clear();
+              setStatus("");
+              setQuery("");
+              setSearch("");
+              setTab(target);
+              requestAnimationFrame(() =>
+                document
+                  .querySelector<HTMLButtonElement>(
+                    `[role="tab"][data-communications-tab="${target}"]`,
+                  )
+                  ?.focus(),
+              );
+            }}
+            data-communications-tab={t}
             className={tab === t ? "btn btn-primary" : "btn btn-secondary"}
             onClick={() => {
               if (dirty && !window.confirm("Discard unsaved changes?")) return;
               clear();
               setStatus("");
               setQuery("");
+              setSearch("");
               setTab(t);
             }}
           >
+            <MediaIcon name={communicationsIcons[t]} size={17} />
             {t === "contact"
               ? "Contact inbox"
               : t === "subscribers"
@@ -224,64 +288,99 @@ export default function ConnectedCommunications() {
           </button>
         ))}
       </div>
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          flexWrap: "wrap",
-          alignItems: "end",
-        }}
-      >
-        <label style={{ flex: "1 1 200px" }}>
-          Search
-          <input
-            style={style}
-            type="search"
-            value={query}
-            onChange={(e) => {
-              if (dirty && !window.confirm("Discard unsaved changes?")) return;
-              setQuery(e.target.value);
-            }}
-          />
-        </label>
-        <label style={{ flex: "0 1 220px" }}>
-          Status
-          <select
-            style={style}
-            value={status}
-            onChange={(e) => {
-              if (dirty && !window.confirm("Discard unsaved changes?")) return;
-              setStatus(e.target.value);
+      {!(record || creating) && (
+        <>
+          <form
+            className="cm-toolbar"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setQuery(search.trim());
             }}
           >
-            <option value="">All statuses</option>
-            {states[tab].map((s) => (
-              <option key={s} value={s}>
-                {s.replace(/_/g, " ")}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          className="btn btn-secondary"
-          disabled={busy}
-          onClick={() => void load()}
-        >
-          Refresh list
-        </button>
-        {tab === "campaigns" && can("newsletter.manage") && (
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              if (dirty && !window.confirm("Discard unsaved changes?")) return;
-              clear();
-              setCreating(true);
-            }}
-          >
-            New newsletter
-          </button>
-        )}
-      </div>
+            <label>
+              Search{" "}
+              {tab === "contact"
+                ? "enquiries"
+                : tab === "subscribers"
+                  ? "subscribers"
+                  : "newsletters"}
+              <input
+                ref={searchField}
+                className="input"
+                type="search"
+                maxLength={100}
+                placeholder={
+                  tab === "contact"
+                    ? "Name, email or subject"
+                    : tab === "subscribers"
+                      ? "Email address"
+                      : "Newsletter subject"
+                }
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </label>
+            <label>
+              Status
+              <select
+                className="input"
+                value={status}
+                disabled={busy}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="">All statuses</option>
+                {states[tab].map((s) => (
+                  <option key={s} value={s}>
+                    {s.replace(/_/g, " ")}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="btn btn-primary" disabled={busy} type="submit">
+              <MediaIcon name="search" size={16} />
+              Search
+            </button>
+            <button
+              className="btn"
+              disabled={busy}
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setQuery("");
+                setStatus("");
+              }}
+            >
+              Reset
+            </button>
+            <button
+              className="btn"
+              type="button"
+              disabled={busy}
+              onClick={() => void load()}
+            >
+              <MediaIcon name="refresh" size={16} />
+              Refresh list
+            </button>
+            {tab === "campaigns" && can("newsletter.manage") && (
+              <button
+                className="btn btn-primary"
+                disabled={busy}
+                type="button"
+                onClick={() => {
+                  clear();
+                  setCreating(true);
+                }}
+              >
+                <MediaIcon name="plus" size={17} />
+                New newsletter
+              </button>
+            )}
+          </form>
+          {!busy && (
+            <CommunicationsSnapshot rows={items} tab={tab} more={!!next} />
+          )}
+        </>
+      )}
       {error && (
         <p
           role="alert"
@@ -299,115 +398,133 @@ export default function ConnectedCommunications() {
           Reload current version
         </button>
       )}
-      <Card>
-        <div style={{ display: "grid", gap: 8 }}>
-          {items.map((item) => (
-            <button
-              key={item.id}
-              className="btn btn-secondary"
-              style={{
-                textAlign: "left",
-                height: "auto",
-                whiteSpace: "normal",
-                justifyContent: "space-between",
-                gap: 12,
-                overflowWrap: "anywhere",
-              }}
-              disabled={busy}
-              onClick={() => void open(item.id)}
-            >
-              <span>
-                {item.subject ?? item.email}
-                <small
-                  style={{ display: "block", color: "var(--text-secondary)" }}
-                >
-                  {item.name ?? ""} {item.subject ? (item.email ?? "") : ""}
-                </small>
-              </span>
-              <span>
-                {item.status.replace(/_/g, " ")}
-                {item.fixture ? " · seed fixture" : ""}
-              </span>
-            </button>
-          ))}
-          {!items.length && !busy && !error && <p>No matching records.</p>}
-          {busy && !items.length && (
-            <LoadingState label={<>Loading…</>} variant="table" />
+      {!(record || creating) && (
+        <section
+          className="cm-directory"
+          aria-busy={busy}
+          aria-label={communicationsNames[tab]}
+        >
+          {busy && !items.length ? (
+            <LoadingState variant="table" label="Loading communications" />
+          ) : (
+            <CommunicationsDirectory
+              tab={tab}
+              rows={items}
+              busy={busy}
+              open={(id) => void open(id)}
+            />
           )}
-          {next && (
-            <button
-              className="btn btn-secondary"
-              disabled={busy}
-              onClick={() => void load(next)}
-            >
-              Load more
-            </button>
-          )}
-        </div>
-      </Card>
+          <div className="cm-list-footer">
+            <p>
+              Newest first. Table pages cover loaded results
+              {next ? "; more matching records are available." : "."}
+            </p>
+            {next && (
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => void load(next)}
+              >
+                <MediaIcon name="plus" size={16} />
+                {busy ? "Loading..." : "Load next 25 records"}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
       {(record || creating) && (
         <Card>
           <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 8,
-              }}
-            >
-              <h2 style={{ fontSize: 21 }}>
-                {creating
-                  ? "New newsletter"
-                  : tab === "contact"
-                    ? record.subject
+            <header className="cm-detail-header">
+              <div>
+                <span className="cm-eyebrow">
+                  <MediaIcon name={communicationsIcons[tab]} size={16} />
+                  {communicationsNames[tab]}
+                </span>
+                <h2 ref={detailHeading} tabIndex={-1}>
+                  {creating
+                    ? "Create your next update"
                     : tab === "subscribers"
                       ? record.email
                       : record.subject}
-              </h2>
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  if (!dirty || window.confirm("Discard unsaved changes?"))
-                    clear();
-                }}
-              >
-                Close
+                </h2>
+                <p>
+                  {creating
+                    ? "Compose, preview, then save. Sending remains a separate reviewed action."
+                    : "A focused view of this record and its recorded activity."}
+                </p>
+              </div>
+              <button className="btn" disabled={busy} onClick={closeDetail}>
+                <MediaIcon name="back" size={16} />
+                Back to list
               </button>
-            </div>
+            </header>
+            {record && <CommunicationFacts record={record} tab={tab} />}
             {record?.fixture && (
               <p style={{ color: "var(--accent)" }}>
                 Development fixture — excluded from email delivery.
               </p>
             )}
             {tab === "contact" && record && (
-              <>
-                <p>
-                  {record.name} ·{" "}
-                  <span style={{ overflowWrap: "anywhere" }}>
-                    {record.email}
-                  </span>{" "}
-                  · {record.topic}
-                </p>
-                <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                  {record.message}
-                </p>
-              </>
+              <section className="cm-message">
+                <header>
+                  <span className="cm-icon">
+                    <MediaIcon name="users" />
+                  </span>
+                  <div>
+                    <strong>{record.name}</strong>
+                    <span>{record.email}</span>
+                  </div>
+                  <span className="cm-topic">{record.topic}</span>
+                </header>
+                <p>{record.message}</p>
+              </section>
             )}
             {tab === "subscribers" && record && (
-              <>
-                <p>
-                  Status: {record.status}. Consent version:{" "}
-                  {record.consentVersion ?? record.consent_version}. Staff
-                  cannot confirm a subscription.
-                </p>
-                <p>
-                  Clearing suppression leaves this address unsubscribed. A new
-                  signup and email confirmation are required.
-                </p>
-              </>
+              <section className="cm-consent-policy">
+                <header className="cm-section-title">
+                  <span className="cm-icon">
+                    <MediaIcon name="lock" />
+                  </span>
+                  <div>
+                    <h3>Consent belongs to the subscriber</h3>
+                    <p>
+                      Staff cannot confirm a subscription. Clearing suppression
+                      leaves the address unsubscribed; a new signup and email
+                      confirmation are required.
+                    </p>
+                  </div>
+                </header>
+                <dl>
+                  <div>
+                    <dt>Requested</dt>
+                    <dd>{communicationsDate(record.requested_at)}</dd>
+                  </div>
+                  <div>
+                    <dt>Confirmed</dt>
+                    <dd>{communicationsDate(record.confirmed_at)}</dd>
+                  </div>
+                  <div>
+                    <dt>Unsubscribed</dt>
+                    <dd>{communicationsDate(record.unsubscribed_at)}</dd>
+                  </div>
+                </dl>
+              </section>
             )}
             {tab === "campaigns" && (
               <>
+                <header className="cm-section-title">
+                  <span className="cm-icon">
+                    <MediaIcon name="edit" />
+                  </span>
+                  <div>
+                    <h3>Compose the message</h3>
+                    <p>
+                      Keep the subject clear and the update focused. The preview
+                      below follows your edits.
+                    </p>
+                  </div>
+                </header>
                 <label>
                   Subject
                   <input
@@ -435,37 +552,55 @@ export default function ConnectedCommunications() {
                     onChange={(e) => setBody(e.target.value)}
                   />
                 </label>
-                <details>
-                  <summary>Preview newsletter</summary>
-                  <h3>{subject}</h3>
-                  <p
-                    style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-                  >
-                    {body}
-                  </p>
-                  <p>
-                    Unsubscribe from the MGTV newsletter: a private link is
-                    added for each confirmed subscriber.
-                  </p>
-                </details>
+                <NewsletterPreview subject={subject} body={body} />
                 {record?.audience && (
-                  <p>
-                    Currently eligible confirmed recipients:{" "}
-                    {record.audience.eligible ?? record.audience.confirmed ?? 0}
-                    . Seed subscribers are excluded.
-                  </p>
+                  <div className="cm-audience">
+                    <span className="cm-icon">
+                      <MediaIcon name="users" />
+                    </span>
+                    <div>
+                      <strong>
+                        {record.audience.eligible ?? 0} eligible recipients
+                      </strong>
+                      <p>
+                        Confirmed, non-fixture subscribers currently eligible.
+                        Eligibility is checked again before delivery.
+                      </p>
+                    </div>
+                  </div>
                 )}
-                {record?.outcomes?.map((o: any) => (
-                  <p key={o.status}>
-                    {o.status}: {o.count}
-                  </p>
-                ))}
               </>
             )}
             {(tab !== "campaigns" || creating || record?.status === "draft") &&
               (can(permission + ".manage") ||
                 (tab === "campaigns" && can("newsletter.send"))) && (
                 <>
+                  <header className="cm-section-title">
+                    <span className="cm-icon">
+                      <MediaIcon name="edit" />
+                    </span>
+                    <div>
+                      <h3>
+                        {tab === "contact"
+                          ? "Respond & update"
+                          : tab === "subscribers"
+                            ? "Consent safeguards"
+                            : "Save & review"}
+                      </h3>
+                      <p>
+                        Every change requires a reason and the appropriate
+                        explicit permission.
+                      </p>
+                    </div>
+                  </header>
+                  <p className="cm-edit-state" role="status">
+                    <MediaIcon name={dirty ? "edit" : "check"} size={16} />
+                    {dirty
+                      ? "Unsaved input - review your changes before continuing."
+                      : creating
+                        ? "New draft - nothing has been sent."
+                        : "Viewing the saved record. Actions require a reason."}
+                  </p>
                   <label>
                     Reason for this action
                     <textarea
@@ -623,31 +758,10 @@ export default function ConnectedCommunications() {
                 >
                   Refresh details and outcomes
                 </button>
-                <h3>Activity history</h3>
-                {record.history?.map((h: any, i: number) => (
-                  <div
-                    key={h.id ?? i}
-                    style={{
-                      padding: "10px 0",
-                      borderBottom: "1px solid var(--border)",
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    <p>
-                      {h.action} · {h.actor} ·{" "}
-                      {new Date(h.created_at).toLocaleString()}
-                    </p>
-                    <p style={{ color: "var(--text-secondary)" }}>{h.reason}</p>
-                    {h.text && (
-                      <p style={{ whiteSpace: "pre-wrap" }}>{h.text}</p>
-                    )}
-                  </div>
-                ))}
-                {record.replies?.map((o: any) => (
-                  <p key={o.id}>
-                    Reply: {o.status} {o.outcome}
-                  </p>
-                ))}
+                <CommunicationHistory record={record} tab={tab} />
+                {tab !== "subscribers" && (
+                  <CommunicationDelivery record={record} />
+                )}
               </>
             )}
           </div>
