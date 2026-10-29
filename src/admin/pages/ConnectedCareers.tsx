@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useDirtyGuard, useRouter } from "../router";
 import LoadingState from "../components/LoadingState";
+import MediaIcon from "../components/MediaIcon";
+import CareersDirectory, {
+  CareersHero,
+  CareerOverview,
+  CareerHistory,
+  CareerStatus,
+} from "../components/CareersVisual";
+import "./careers-admin.css";
 type Draft = {
   title: string;
   department: string;
@@ -30,6 +38,12 @@ export default function ConnectedCareers() {
   const { route, navigate } = useRouter();
   const id = route.parts[0] ?? "";
   const creating = id === "new";
+  const [search, setSearch] = useState(""),
+    [query, setQuery] = useState(""),
+    [status, setStatus] = useState(""),
+    [view, setView] = useState("overview");
+  const listParams = (after?: string) =>
+    new URLSearchParams({ q: query, status, ...(after ? { after } : {}) });
   const [session, setSession] = useState<any>(null),
     [record, setRecord] = useState<any>(null),
     [draft, setDraft] = useState<Draft>(empty),
@@ -58,9 +72,11 @@ export default function ConnectedCareers() {
     savedNavigation.current = false;
     let active = true;
     setBusy(true);
+    setView(creating ? "edit" : "overview");
     setError("");
     setNotice("");
     setRecord(null);
+    if (!id) setItems([]);
     setDraft(empty);
     setHistory([]);
     setAction("");
@@ -84,7 +100,7 @@ export default function ConnectedCareers() {
           setHistory(h.items);
         }
       } else {
-        const b = await api("/admin/careers");
+        const b = await api("/admin/careers?" + listParams());
         if (active) {
           setItems(b.items);
           setNext(b.next);
@@ -100,7 +116,7 @@ export default function ConnectedCareers() {
     return () => {
       active = false;
     };
-  }, [id, refresh, creating]);
+  }, [id, refresh, creating, query, status]);
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -164,7 +180,13 @@ export default function ConnectedCareers() {
       setSaving(false);
     }
   }
-  if (busy) return <LoadingState variant="form" />;
+  if (busy)
+    return (
+      <LoadingState
+        variant={id ? "form" : "cards"}
+        label="Loading Careers workspace"
+      />
+    );
   const field = (
     key: keyof Draft,
     label: string,
@@ -195,8 +217,7 @@ export default function ConnectedCareers() {
     </label>
   );
   return (
-    <div className="career-admin">
-      <style>{`.career-admin{max-width:1100px;min-width:0}.career-admin h2{font-size:17px;font-weight:600;margin-bottom:10px}.career-admin h3{font-size:15px;font-weight:600;margin:12px 0}.career-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.career-field{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:13px}.career-field input,.career-field textarea,.career-field select,.career-reason{width:100%;min-width:0;box-sizing:border-box;background:var(--bg);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;padding:11px;font:inherit}.career-panel{border:1px solid var(--border);border-radius:12px;padding:24px;margin:18px 0;background:var(--card)}.career-actions{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}.career-row{display:block;text-align:left;width:100%;padding:20px;background:var(--card);border:1px solid var(--border);border-radius:12px;color:var(--text-primary);cursor:pointer;overflow-wrap:anywhere}.career-help{color:var(--text-secondary);font-size:13px;line-height:1.6}@media(max-width:600px){.career-grid{grid-template-columns:minmax(0,1fr)}.career-panel{padding:16px}}`}</style>
+    <div className="career-admin av-workspace">
       {error && (
         <div role="alert" className="career-panel">
           <p>{error}</p>
@@ -218,42 +239,83 @@ export default function ConnectedCareers() {
       {notice && <p role="status">{notice}</p>}
       {!id ? (
         <>
-          <div className="career-actions">
+          <CareersHero />
+          <aside className="career-v-external-note">
+            <span className="career-v-icon">
+              <MediaIcon name="globe" />
+            </span>
+            <div>
+              <strong>Applications stay with your recruitment team</strong>
+              <p>
+                Each vacancy links to an approved external application
+                destination. MGTV does not collect applications or resumes.
+              </p>
+            </div>
+          </aside>
+          <form
+            className="career-v-toolbar"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setQuery(search.trim());
+            }}
+          >
+            <label>
+              Find a vacancy
+              <input
+                className="input"
+                type="search"
+                maxLength={120}
+                placeholder="Role, team or location"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </label>
+            <label>
+              Status
+              <select
+                className="input"
+                value={status}
+                disabled={saving}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="">All statuses</option>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <button className="btn btn-primary" disabled={saving}>
+              <MediaIcon name="search" size={16} />
+              Search
+            </button>
+            <button
+              className="btn"
+              type="button"
+              disabled={saving}
+              onClick={() => {
+                setSearch("");
+                setQuery("");
+                setStatus("");
+              }}
+            >
+              Reset
+            </button>
             <button
               className="btn btn-primary"
-              disabled={!canManage}
+              type="button"
+              disabled={!canManage || saving}
               onClick={() => navigate("/admin/careers/new")}
             >
+              <MediaIcon name="plus" size={17} />
               Create vacancy
             </button>
-          </div>
-          <p className="career-help">
-            Publish opportunities with an approved external application
-            destination. MGTV does not collect applications.
-          </p>
-          <div style={{ display: "grid", gap: 12 }}>
-            {items.map((r) => (
-              <button
-                className="career-row"
-                key={r.id}
-                onClick={() => navigate("/admin/careers/" + r.id)}
-              >
-                <strong>{r.draft.title}</strong>
-                <p className="career-help">
-                  {r.draft.department} · {r.draft.location} · {r.status}
-                  {r.status === "published" &&
-                  Date.parse(r.published.closesAt) <= Date.now()
-                    ? " · expired"
-                    : ""}
-                </p>
-              </button>
-            ))}
-          </div>
-          {!items.length && !error && (
-            <div className="career-panel">
-              No vacancies yet. Start with a draft.
-            </div>
-          )}
+          </form>
+          <CareersDirectory
+            key={query + status}
+            items={items}
+            next={!!next}
+            open={(id) => navigate("/admin/careers/" + id)}
+          />
           {next && (
             <button
               className="btn"
@@ -261,7 +323,7 @@ export default function ConnectedCareers() {
               onClick={async () => {
                 setSaving(true);
                 try {
-                  const b = await api("/admin/careers?after=" + next);
+                  const b = await api("/admin/careers?" + listParams(next));
                   setItems((v) => [...v, ...b.items]);
                   setNext(b.next);
                 } catch (e: any) {
@@ -282,118 +344,204 @@ export default function ConnectedCareers() {
             disabled={saving}
             onClick={() => navigate("/admin/careers")}
           >
-            ← All vacancies
+            <MediaIcon name="back" size={16} />
+            All vacancies
           </button>
           {(creating || record) && (
             <>
-              <div className="career-panel">
-                <h2>{creating ? "Create an opportunity" : draft.title}</h2>
-                <p className="career-help">
-                  {creating
-                    ? "Private draft"
-                    : `Status: ${record.status} · Saved version ${record.version}`}{" "}
-                  · Editing a draft does not change the public listing.
-                </p>
-                <form onSubmit={save}>
-                  <fieldset
-                    disabled={
-                      !canManage || saving || record?.status === "closed"
-                    }
-                    style={{ border: 0, padding: 0, minWidth: 0 }}
-                  >
-                    <div className="career-grid">
-                      {field("title", "Role title", 180)}
-                      {field("department", "Team / department", 100)}
-                      {field("location", "Location", 180)}
-                      <label className="career-field">
-                        Workplace
-                        <select
-                          value={draft.workplace}
-                          onChange={(e) =>
-                            setDraft({ ...draft, workplace: e.target.value })
-                          }
-                        >
-                          {["onsite", "hybrid", "remote"].map((v) => (
-                            <option key={v}>{v}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="career-field">
-                        Employment
-                        <select
-                          value={draft.employment}
-                          onChange={(e) =>
-                            setDraft({ ...draft, employment: e.target.value })
-                          }
-                        >
-                          {[
-                            "full-time",
-                            "part-time",
-                            "contract",
-                            "internship",
-                          ].map((v) => (
-                            <option key={v}>{v}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="career-field">
-                        Applications close (your local timezone)
-                        <input
-                          required
-                          type="datetime-local"
-                          value={
-                            draft.closesAt
-                              ? new Date(
-                                  Date.parse(draft.closesAt) -
-                                    new Date(
-                                      draft.closesAt,
-                                    ).getTimezoneOffset() *
-                                      60000,
-                                )
-                                  .toISOString()
-                                  .slice(0, 16)
-                              : ""
-                          }
-                          onChange={(e) =>
-                            setDraft({
-                              ...draft,
-                              closesAt: e.target.value
-                                ? new Date(e.target.value).toISOString()
-                                : "",
-                            })
-                          }
-                        />
-                      </label>
-                    </div>
-                    <div style={{ display: "grid", gap: 18, marginTop: 18 }}>
-                      {field("summary", "Introduction", 600, true)}
-                      {field("description", "The opportunity", 15000, true)}
-                      {field(
-                        "requirements",
-                        "What applicants will bring",
-                        10000,
-                        true,
-                      )}
-                      {field(
-                        "applicationUrl",
-                        "External HTTPS application URL",
-                        2048,
-                      )}
-                    </div>
-                    <p className="career-help">
-                      Plain text preserves line breaks. Confirm that the
-                      external application destination is controlled by your
-                      recruitment team.
-                    </p>
-                    <button className="btn btn-primary" type="submit">
-                      {saving ? "Saving…" : "Save draft"}
-                    </button>
-                  </fieldset>
-                </form>
-              </div>
+              <header className="career-v-workspace-heading">
+                <div>
+                  <span className="career-v-eyebrow">
+                    <MediaIcon name="users" size={16} />
+                    {creating ? "NEW OPPORTUNITY" : "VACANCY WORKSPACE"}
+                  </span>
+                  <h2>
+                    {creating
+                      ? "Build your next opportunity"
+                      : record.draft.title}
+                  </h2>
+                  <p>
+                    {creating
+                      ? "Start privately. Review and publish only when ready."
+                      : "Manage the saved role, public snapshot and recorded decisions separately."}
+                  </p>
+                </div>
+                {record && <CareerStatus record={record} />}
+              </header>
               {!creating && (
+                <nav
+                  className="career-v-section-nav"
+                  aria-label="Vacancy workspace"
+                >
+                  {[
+                    { id: "overview", label: "Saved overview", icon: "grid" },
+                    { id: "edit", label: "Edit draft", icon: "edit" },
+                    { id: "public", label: "Public snapshot", icon: "globe" },
+                    { id: "history", label: "Version history", icon: "clock" },
+                  ].map((item) => (
+                    <button
+                      className="btn"
+                      type="button"
+                      key={item.id}
+                      aria-pressed={view === item.id}
+                      disabled={
+                        saving || (item.id === "public" && !record.published)
+                      }
+                      onClick={() => setView(item.id)}
+                    >
+                      <MediaIcon name={item.icon} size={17} />
+                      {item.label}
+                    </button>
+                  ))}
+                </nav>
+              )}
+              {dirty && (
+                <p className="career-v-unsaved" role="status">
+                  <MediaIcon name="edit" size={16} />
+                  Unsaved draft edits. The saved and public snapshots below do
+                  not include them.
+                </p>
+              )}
+              {!creating && view === "overview" && (
+                <CareerOverview
+                  body={record.draft}
+                  label="Saved draft / not a live preview"
+                />
+              )}
+              {!creating && view === "public" && record.published && (
+                <>
+                  <p className="career-v-external-note">
+                    This is the stored published snapshot. Expired or closed
+                    vacancies are unavailable publicly. It does not include
+                    unpublished draft edits.
+                  </p>
+                  <CareerOverview
+                    body={record.published}
+                    label="Published snapshot"
+                  />
+                </>
+              )}
+              {(creating || view === "edit") && (
                 <div className="career-panel">
-                  <h2>Publication</h2>
+                  <h2>{creating ? "Create an opportunity" : draft.title}</h2>
+                  <p className="career-help">
+                    {creating
+                      ? "Private draft"
+                      : `Status: ${record.status} · Saved version ${record.version}`}{" "}
+                    · Editing a draft does not change the public listing.
+                  </p>
+                  <form onSubmit={save}>
+                    <fieldset
+                      disabled={
+                        !canManage || saving || record?.status === "closed"
+                      }
+                      style={{ border: 0, padding: 0, minWidth: 0 }}
+                    >
+                      <div className="career-grid">
+                        {field("title", "Role title", 180)}
+                        {field("department", "Team / department", 100)}
+                        {field("location", "Location", 180)}
+                        <label className="career-field">
+                          Workplace
+                          <select
+                            value={draft.workplace}
+                            onChange={(e) =>
+                              setDraft({ ...draft, workplace: e.target.value })
+                            }
+                          >
+                            {["onsite", "hybrid", "remote"].map((v) => (
+                              <option key={v}>{v}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="career-field">
+                          Employment
+                          <select
+                            value={draft.employment}
+                            onChange={(e) =>
+                              setDraft({ ...draft, employment: e.target.value })
+                            }
+                          >
+                            {[
+                              "full-time",
+                              "part-time",
+                              "contract",
+                              "internship",
+                            ].map((v) => (
+                              <option key={v}>{v}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="career-field">
+                          Applications close (your local timezone)
+                          <input
+                            required
+                            type="datetime-local"
+                            value={
+                              draft.closesAt
+                                ? new Date(
+                                    Date.parse(draft.closesAt) -
+                                      new Date(
+                                        draft.closesAt,
+                                      ).getTimezoneOffset() *
+                                        60000,
+                                  )
+                                    .toISOString()
+                                    .slice(0, 16)
+                                : ""
+                            }
+                            onChange={(e) =>
+                              setDraft({
+                                ...draft,
+                                closesAt: e.target.value
+                                  ? new Date(e.target.value).toISOString()
+                                  : "",
+                              })
+                            }
+                          />
+                        </label>
+                      </div>
+                      <div style={{ display: "grid", gap: 18, marginTop: 18 }}>
+                        {field("summary", "Introduction", 600, true)}
+                        {field("description", "The opportunity", 15000, true)}
+                        {field(
+                          "requirements",
+                          "What applicants will bring",
+                          10000,
+                          true,
+                        )}
+                        {field(
+                          "applicationUrl",
+                          "External HTTPS application URL",
+                          2048,
+                        )}
+                      </div>
+                      <p className="career-help">
+                        Plain text preserves line breaks. Confirm that the
+                        external application destination is controlled by your
+                        recruitment team.
+                      </p>
+                      <button className="btn btn-primary" type="submit">
+                        {saving ? "Saving…" : "Save draft"}
+                      </button>
+                    </fieldset>
+                  </form>
+                </div>
+              )}
+              {!creating && view === "overview" && (
+                <div className="career-panel career-v-publication">
+                  <header className="career-v-section-heading">
+                    <span className="career-v-icon">
+                      <MediaIcon name="globe" />
+                    </span>
+                    <div>
+                      <h2>Publication decisions</h2>
+                      <p>
+                        Review the saved version before changing its public
+                        availability.
+                      </p>
+                    </div>
+                  </header>
                   <p className="career-help">
                     Publishing replaces the public listing with this saved
                     version. Closed and expired vacancies are unavailable
@@ -479,30 +627,8 @@ export default function ConnectedCareers() {
                   )}
                 </div>
               )}
-              {!creating && (
-                <section className="career-panel">
-                  <h2>Saved history</h2>
-                  <p className="career-help">
-                    Latest 100 changes. Publication records identify the exact
-                    reviewed version.
-                  </p>
-                  {history.map((h) => (
-                    <details
-                      key={h.version}
-                      style={{ margin: "16px 0", overflowWrap: "anywhere" }}
-                    >
-                      <summary>
-                        Version {h.version} · {h.action} ·{" "}
-                        {new Date(h.created_at).toLocaleString()}
-                      </summary>
-                      <p>{h.reason}</p>
-                      <p className="career-help">
-                        {h.body.title} · {h.body.department} · {h.body.location}
-                      </p>
-                      <p style={{ whiteSpace: "pre-wrap" }}>{h.body.summary}</p>
-                    </details>
-                  ))}
-                </section>
+              {!creating && view === "history" && (
+                <CareerHistory items={history} />
               )}
             </>
           )}
