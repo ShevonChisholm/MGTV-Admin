@@ -2,6 +2,7 @@ import { useDirtyGuard } from "../router";
 import React, { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { Card } from "../ui";
+import MediaIcon from "./MediaIcon";
 import LoadingState, { ErrorState } from "./LoadingState";
 export default function LifecycleSettings({
   kind,
@@ -202,15 +203,31 @@ export function LifecycleAutomation() {
   }, [revision]);
   return (
     <Card title="Lifecycle notifications">
-      <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-        Fresh releases, approved first looks, leaving-soon titles, new episodes,
-        explicit finales and upcoming events use real content records. Each
-        milestone is recorded once; profile access, active profile allowance and
-        preferences are checked before delivery. Old milestones are not
-        backfilled. Gold gets event first looks at 32 days, 48 hours ahead of
-        the standard 30-day window; a delivery claim prevents a repeat general
-        notice.
-      </p>
+      <div className="nt-lifecycle-moments">
+        {[
+          { icon: "film", label: "Fresh releases" },
+          { icon: "series", label: "New episodes & finales" },
+          { icon: "clock", label: "Coming & leaving soon" },
+          { icon: "calendar", label: "Event first looks" },
+        ].map((x) => (
+          <span key={x.label}>
+            <MediaIcon name={x.icon} size={18} />
+            {x.label}
+          </span>
+        ))}
+      </div>
+      <details className="nt-lifecycle-policy">
+        <summary>How eligibility and first looks work</summary>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+          Fresh releases, approved first looks, leaving-soon titles, new
+          episodes, explicit finales and upcoming events use real content
+          records. Each milestone is recorded once; profile access, active
+          profile allowance and preferences are checked before delivery. Old
+          milestones are not backfilled. Gold gets event first looks at 32 days,
+          48 hours ahead of the standard 30-day window; a delivery claim
+          prevents a repeat general notice.
+        </p>
+      </details>
       {error && (
         <ErrorState message={error} onRetry={() => setRevision((v) => v + 1)} />
       )}{" "}
@@ -219,7 +236,7 @@ export function LifecycleAutomation() {
       ) : null}
       {data && (
         <div style={{ display: "grid", gap: 12 }}>
-          <label>
+          <label className="nt-lifecycle-option">
             <input
               type="checkbox"
               checked={enabled}
@@ -228,7 +245,7 @@ export function LifecycleAutomation() {
             />{" "}
             Automatically deliver lifecycle notices in-app
           </label>
-          <label>
+          <label className="nt-lifecycle-option">
             <input
               type="checkbox"
               checked={localEmail}
@@ -280,16 +297,31 @@ export function LifecycleAutomation() {
             Save automation settings
           </button>
           {data.metrics?.length ? (
-            <ul>
+            <div
+              className="nt-lifecycle-metrics"
+              aria-label="Recorded lifecycle milestones"
+            >
               {data.metrics.map((m: any) => (
-                <li key={m.milestone}>
-                  {m.milestone}: {m.messages} message(s), {m.milestones}{" "}
-                  recorded milestone(s)
-                </li>
+                <div key={m.milestone}>
+                  <MediaIcon
+                    name={
+                      m.milestone.includes("event")
+                        ? "calendar"
+                        : m.milestone.includes("episode") ||
+                            m.milestone.includes("finale")
+                          ? "series"
+                          : "bell"
+                    }
+                    size={22}
+                  />
+                  <h4>{m.milestone.replace(/-/g, " ")}</h4>
+                  <strong>{m.messages}</strong>
+                  <span>messages · {m.milestones} recorded milestones</span>
+                </div>
               ))}
-            </ul>
+            </div>
           ) : (
-            <p>No lifecycle milestones recorded yet.</p>
+            <p className="nt-footnote">No lifecycle milestones recorded yet.</p>
           )}
         </div>
       )}

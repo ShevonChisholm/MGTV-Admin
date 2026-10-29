@@ -1,12 +1,24 @@
-import {LifecycleAutomation} from "../components/LifecycleSettings";
+import { LifecycleAutomation } from "../components/LifecycleSettings";
 import LoadingState from "../components/LoadingState";
 import React, { useEffect, useState, useRef } from "react";
 import { api, ApiError } from "../api/client";
 import { Link, useRouter, useDirtyGuard } from "../router";
-import { Card, TextField, SelectField, EmptyState, Modal } from "../ui";
+import { Card, TextField, EmptyState, Modal } from "../ui";
 import { RouteTabs, Note } from "../ui/ops";
 import { PageActions } from "../components/PageHeader";
 import StaffAuth from "./StaffAuth";
+import MediaIcon from "../components/MediaIcon";
+import NotificationCard, {
+  NotificationPreview,
+  NotificationOverview,
+  AudienceSummary,
+  DeliveryMetrics,
+  NotificationActivity,
+  NotificationStatus,
+  audienceLabel,
+  ChannelChips,
+} from "../components/NotificationsVisual";
+import "../components/NotificationsVisual.css";
 const blank = {
   title: "",
   body: "",
@@ -67,7 +79,12 @@ function Workspace({ parts }: { parts: string[] }) {
     [reason, setReason] = useState(""),
     [schedule, setSchedule] = useState(""),
     [test, setTest] = useState<any>(null),
-    [archived, setArchived] = useState(false);
+    [archived, setArchived] = useState(false),
+    [pane, setPane] = useState(id === "new" ? "edit" : "overview"),
+    [step, setStep] = useState("message"),
+    [filterQuery, setFilterQuery] = useState(""),
+    [filterCategory, setFilterCategory] = useState(""),
+    [filterStatus, setFilterStatus] = useState("");
   const saved = useRef(JSON.stringify(blank)),
     leaving = useRef(false),
     request = useRef<{ body: string; key: string } | null>(null);
@@ -123,19 +140,44 @@ function Workspace({ parts }: { parts: string[] }) {
             ? "?after=" + after
             : ""),
     );
-    setItems((old) => (after ? [...old, ...page.items] : page.items));
+    setItems((old) =>
+      after
+        ? [
+            ...old,
+            ...page.items.filter((r: any) => !old.some((x) => x.id === r.id)),
+          ]
+        : page.items,
+    );
     setCursor(page.nextCursor);
   }
   useEffect(() => {
+    let active = true;
     void run(async () => {
       const s = await api("/admin/session");
+      if (!active) return;
       setSession(s);
       if (!s.permissions.includes("notifications.read")) return;
-      const a = await api("/admin/notifications/audiences");
+      const [a, data] = await Promise.all([
+        api("/admin/notifications/audiences"),
+        editing
+          ? id !== "new"
+            ? api(endpoint + "/" + id)
+            : Promise.resolve(null)
+          : api(endpoint + (template ? "?archived=false" : "")),
+      ]);
+      if (!active) return;
       setAudiences(a.items);
-      if (editing && id !== "new") apply(await api(endpoint + "/" + id));
-      else if (!editing) await load();
-    }).finally(() => setLoaded(true));
+      if (editing && data) apply(data);
+      else if (!editing && data) {
+        setItems(data.items);
+        setCursor(data.nextCursor);
+      }
+    }).finally(() => {
+      if (active) setLoaded(true);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
   async function save() {
     await run(async () => {
@@ -152,6 +194,7 @@ function Workspace({ parts }: { parts: string[] }) {
         request.current!.key,
       );
       apply(r);
+      apply(await api(endpoint + "/" + r.id));
       setNotice("Saved.");
       if (!record) {
         leaving.current = true;
@@ -193,7 +236,7 @@ function Workspace({ parts }: { parts: string[] }) {
         record.version,
       );
       if (r.test) setTest(r.test);
-      else apply(await api(endpoint + "/" + record.id));
+      apply(await api(endpoint + "/" + record.id));
       setAction("");
       setNotice(
         action === "test"
@@ -203,7 +246,7 @@ function Workspace({ parts }: { parts: string[] }) {
     });
   }
   if (!loaded)
-    return <LoadingState label={<>Loading notifications…</>} variant="table" />;
+    return <LoadingState label={<>Loading notifications…</>} variant="cards" />;
   if (!session)
     return (
       <StaffAuth
@@ -220,21 +263,68 @@ function Workspace({ parts }: { parts: string[] }) {
         </Note>
       </div>
     );
-  const rows = items.filter((r) =>
+  const loadedRows = items.filter((r) =>
     template || tab === "history"
       ? !["draft", "scheduled"].includes(r.status)
       : ["draft", "scheduled"].includes(r.status),
   );
+  const rows = loadedRows.filter((r) => {
+    const b = template ? r.body : r;
+    return (
+      (!filterQuery ||
+        [r.name, b.title, b.body].some((x) =>
+          String(x ?? "")
+            .toLowerCase()
+            .includes(filterQuery.trim().toLowerCase()),
+        )) &&
+      (!filterCategory || b.category === filterCategory) &&
+      (!filterStatus || r.status === filterStatus)
+    );
+  });
+  const savedBody = record ? (template ? record.body : record) : draft;
+  const navTab = template
+    ? "templates"
+    : editing && record && !["draft", "scheduled"].includes(record.status)
+      ? "history"
+      : tab;
   return (
-    <div className="page-pad notifications-workspace">
+    <div className="page-pad notifications-workspace" aria-busy={busy}>
+      <header className="nt-intro">
+        <span className="nt-eyebrow">MGTV · STAY IN THE KNOW</span>
+        <h2>
+          {editing
+            ? template
+              ? "A reusable spark for your next message."
+              : "Make every message feel like MGTV."
+            : tab === "history"
+              ? "Every message has a story."
+              : template
+                ? "Great messages start with a spark."
+                : "Keep your audience in the moment."}
+        </h2>
+        <p>
+          {editing
+            ? "Shape the message, choose its audience and review the saved version before delivery."
+            : "Compose with intention, review the audience and follow real delivery outcomes."}
+        </p>
+      </header>
       <RouteTabs
         label="Notification sections"
         base="/admin/notifications"
-        value={tab}
+        value={navTab}
         items={sections}
       />
       <div style={{ height: 16 }} />
-      {!id&&<LifecycleAutomation/>}
+      {!id && (
+        <details className="nt-lifecycle">
+          <summary>
+            <MediaIcon name="refresh" size={18} />
+            <strong>Lifecycle automation</strong>
+            <span>Release moments, first looks and event notices</span>
+          </summary>
+          <LifecycleAutomation />
+        </details>
+      )}
       {error && (
         <div
           role="alert"
@@ -258,19 +348,102 @@ function Workspace({ parts }: { parts: string[] }) {
                   "/admin/notifications/" + (template ? "templates/new" : "new")
                 }
               >
+                <MediaIcon name="plus" size={16} />
                 {template ? "New template" : "Compose message"}
               </Link>
             )}
           </PageActions>
-          <Note title="Delivery connected">
-            In-app delivery is stored in customer profiles. Email is delivered
-            to the private local inbox only; browser push is not configured.
-          </Note>
+          <div className="nt-mode-strip" aria-label="Delivery availability">
+            <span>
+              <MediaIcon name="bell" size={16} />
+              In-app · connected
+            </span>
+            <span className="nt-mode-local">
+              <MediaIcon name="mail" size={16} />
+              Email · private development inbox
+            </span>
+            <span>
+              <MediaIcon name="lock" size={16} />
+              Browser push · unavailable
+            </span>
+          </div>
+          <div
+            className="nt-toolbar"
+            role="search"
+            aria-label="Filter loaded notifications"
+          >
+            <label>
+              Search loaded {template ? "templates" : "messages"}
+              <input
+                className="input"
+                maxLength={120}
+                value={filterQuery}
+                onChange={(e) => setFilterQuery(e.target.value)}
+              />
+            </label>
+            <label>
+              Category
+              <select
+                className="input"
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+              >
+                <option value="">All categories</option>
+                {categories.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            {!template && (
+              <label>
+                Message status
+                <select
+                  className="input"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  <option value="">All statuses</option>
+                  {(tab === "messages"
+                    ? ["draft", "scheduled"]
+                    : ["queued", "sent", "cancelled"]
+                  ).map((c) => (
+                    <option key={c} value={c}>
+                      {c[0].toUpperCase() + c.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {(filterQuery || filterCategory || filterStatus) && (
+              <button
+                className="btn"
+                onClick={() => {
+                  setFilterQuery("");
+                  setFilterCategory("");
+                  setFilterStatus("");
+                }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+          <div className="nt-result-count">
+            <span>
+              {rows.length} of {loadedRows.length} loaded{" "}
+              {template ? "templates" : "messages"} shown
+            </span>
+            <span>
+              {cursor
+                ? "More saved records available below"
+                : "End of loaded records"}
+            </span>
+          </div>
           {template && (
             <button
               className="btn"
               style={{ marginBottom: 12 }}
               aria-pressed={archived}
+              disabled={busy}
               onClick={() => {
                 setArchived(!archived);
                 void run(() => load(undefined, !archived));
@@ -279,123 +452,41 @@ function Workspace({ parts }: { parts: string[] }) {
               {archived ? "Show active templates" : "Show archived templates"}
             </button>
           )}
-          {template && rows.length ? (
-            <div style={{ display: "grid", gap: 10 }}>
+          {rows.length ? (
+            <div className="nt-message-grid">
               {rows.map((r) => (
-                <Card key={r.id} title={r.name}>
-                  <p
-                    style={{ margin: "0 0 4px", fontWeight: 600, fontSize: 14 }}
-                  >
-                    {r.body.title}
-                  </p>
-                  <p
-                    style={{
-                      margin: "0 0 10px",
-                      fontSize: 13.5,
-                      color: "var(--text-secondary)",
-                    }}
-                  >
-                    {r.body.body}
-                  </p>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      alignItems: "center",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 12.5,
-                        color: "var(--text-muted)",
-                        marginRight: "auto",
-                      }}
-                    >
-                      {r.body.channels
-                        .map((x: string) =>
-                          x === "in_app" ? "In-app" : "Email",
-                        )
-                        .join(" + ")}
-                    </span>
-                    <button
-                      className="btn btn-sm btn-primary"
-                      disabled={
-                        !!r.archived_at || busy || !can("notifications.manage")
-                      }
-                      onClick={() =>
-                        void run(async () => {
-                          const { name, ...b } = r.body;
-                          const created = await api(
-                            "/admin/notifications/messages",
-                            "POST",
-                            b,
-                          );
-                          navigate("/admin/notifications/" + created.id);
-                        })
-                      }
-                    >
-                      Use in new message
-                    </button>
-                    <Link
-                      className="btn btn-sm"
-                      to={"/admin/notifications/templates/" + r.id}
-                    >
-                      {r.archived_at ? "View archived" : "Edit"}
-                    </Link>
-                  </div>
-                </Card>
+                <NotificationCard
+                  key={r.id}
+                  record={r}
+                  template={template}
+                  busy={busy}
+                  canManage={can("notifications.manage")}
+                  onUse={() =>
+                    void run(async () => {
+                      const { name, ...b } = r.body;
+                      const created = await api(
+                        "/admin/notifications/messages",
+                        "POST",
+                        b,
+                      );
+                      navigate("/admin/notifications/" + created.id);
+                    })
+                  }
+                />
               ))}
-            </div>
-          ) : rows.length ? (
-            <div className="scroll-x">
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th>{template ? "Template" : "Message"}</th>
-                    <th>Audience</th>
-                    <th>Channels</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.id}>
-                      <td>
-                        <Link
-                          to={
-                            "/admin/notifications/" +
-                            (template ? "templates/" : "") +
-                            r.id
-                          }
-                        >
-                          {template ? r.name : r.title}
-                          {r.lifecycle_id&&<small style={{display:"block",color:"var(--accent)"}}>Automatic lifecycle notice</small>}
-                        </Link>
-                      </td>
-                      <td>{r.audience ?? r.body?.audience}</td>
-                      <td>
-                        {(r.channels ?? r.body?.channels)
-                          ?.map((s: string) =>
-                            s === "in_app" ? "In-app" : "Email",
-                          )
-                          .join(" + ")}
-                      </td>
-                      <td>
-                        {r.status ?? "Template"}
-                        {r.schedule_at && (
-                          <div>{new Date(r.schedule_at).toLocaleString()}</div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           ) : (
             <EmptyState
-              title={template ? "No templates yet" : "No messages in this view"}
-              body="Compose a message or choose another tab."
+              title={
+                template
+                  ? "No templates in this view"
+                  : "No messages in this view"
+              }
+              body={
+                filterQuery || filterCategory || filterStatus
+                  ? "Clear the filters or load more saved records."
+                  : "Compose a message, load more records or choose another tab."
+              }
             />
           )}
           {cursor && (
@@ -411,8 +502,8 @@ function Workspace({ parts }: { parts: string[] }) {
       ) : (
         <>
           <PageActions>
-            <Link className="btn" to={"/admin/notifications/" + tab}>
-              Back to {tab}
+            <Link className="btn" to={"/admin/notifications/" + navTab}>
+              Back to {navTab}
             </Link>
             {template && record && can("notifications.manage") && (
               <button
@@ -430,188 +521,293 @@ function Workspace({ parts }: { parts: string[] }) {
             {editable && (
               <button
                 className="btn btn-primary"
-                disabled={busy || !dirty}
+                disabled={
+                  busy ||
+                  !dirty ||
+                  !draft.title.trim() ||
+                  !draft.body.trim() ||
+                  !draft.channels.length ||
+                  (template && !draft.name.trim())
+                }
                 onClick={() => void save()}
               >
                 Save {template ? "template" : "draft"}
               </button>
             )}
           </PageActions>
-          <div
-            className="editor-layout"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(0,1fr) minmax(240px,300px)",
-              gap: 20,
-              alignItems: "start",
-            }}
-          >
-            <Card
-              title={template ? "Notification template" : "Compose message"}
-            >
-              <div style={{ display: "grid", gap: 16 }}>
-                {template && (
-                  <TextField
-                    label="Template name"
-                    value={draft.name}
-                    disabled={!editable}
-                    onChange={(e) =>
-                      setDraft({ ...draft, name: e.target.value })
-                    }
-                  />
-                )}
-                <TextField
-                  label="Title"
-                  value={draft.title}
-                  maxLength={120}
-                  disabled={!editable}
-                  onChange={(e) =>
-                    setDraft({ ...draft, title: e.target.value })
-                  }
-                />
-                <TextField
-                  label="Message"
-                  multiline
-                  rows={5}
-                  value={draft.body}
-                  maxLength={400}
-                  disabled={!editable}
-                  onChange={(e) => setDraft({ ...draft, body: e.target.value })}
-                />
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                  {draft.body.length}/400 characters · plain text
-                </div>
-                <label>
-                  Category
-                  <select
-                    className="input"
-                    value={draft.category}
-                    disabled={!editable}
-                    onChange={(e) =>
-                      setDraft({ ...draft, category: e.target.value })
-                    }
+          {record && (
+            <nav className="nt-pane-nav" aria-label="Message workspace">
+              {["overview", "edit", ...(!template ? ["activity"] : [])].map(
+                (v) => (
+                  <button
+                    key={v}
+                    className="btn"
+                    aria-pressed={pane === v}
+                    onClick={() => setPane(v)}
                   >
-                    {categories.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </select>
-                </label>
-                <fieldset
-                  disabled={!editable}
-                  style={{ border: 0, padding: 0 }}
-                >
-                  <legend>Channels</legend>
-                  {["in_app", "email"].map((x) => (
-                    <label
-                      key={x}
-                      style={{
-                        display: "inline-flex",
-                        gap: 6,
-                        marginRight: 16,
-                      }}
+                    <MediaIcon
+                      name={
+                        v === "overview"
+                          ? "grid"
+                          : v === "edit"
+                            ? "edit"
+                            : "clock"
+                      }
+                      size={17}
+                    />
+                    {v === "edit"
+                      ? editable
+                        ? "Edit message"
+                        : "Saved details"
+                      : v === "activity"
+                        ? "Activity"
+                        : "Overview"}
+                  </button>
+                ),
+              )}
+            </nav>
+          )}
+          <div className="nt-editor-layout">
+            {pane === "overview" && record ? (
+              <NotificationOverview
+                record={record}
+                body={savedBody}
+                template={template}
+              />
+            ) : pane === "activity" && record ? (
+              <NotificationActivity items={record.history ?? []} />
+            ) : (
+              <Card
+                title={
+                  template
+                    ? "Notification template"
+                    : editable
+                      ? "Compose message"
+                      : "Saved message details"
+                }
+              >
+                <nav className="nt-steps" aria-label="Composition steps">
+                  {["message", "audience", "review"].map((v, i) => (
+                    <button
+                      className="btn"
+                      key={v}
+                      aria-pressed={step === v}
+                      onClick={() => setStep(v)}
                     >
-                      <input
-                        type="checkbox"
-                        checked={draft.channels.includes(x)}
-                        onChange={() =>
-                          setDraft({
-                            ...draft,
-                            channels: draft.channels.includes(x)
-                              ? draft.channels.filter((c: string) => c !== x)
-                              : [...draft.channels, x],
-                          })
+                      <span>{i + 1}</span>
+                      {v === "message"
+                        ? "Message"
+                        : v === "audience"
+                          ? "Audience & channels"
+                          : "Review"}
+                    </button>
+                  ))}
+                </nav>
+                <div style={{ display: "grid", gap: 16 }}>
+                  {step === "message" && (
+                    <div className="nt-step-fields">
+                      {template && (
+                        <TextField
+                          label="Template name"
+                          value={draft.name}
+                          disabled={!editable}
+                          onChange={(e) =>
+                            setDraft({ ...draft, name: e.target.value })
+                          }
+                        />
+                      )}
+                      <TextField
+                        label="Title"
+                        value={draft.title}
+                        maxLength={120}
+                        disabled={!editable}
+                        onChange={(e) =>
+                          setDraft({ ...draft, title: e.target.value })
                         }
                       />
-                      {x === "in_app" ? "In-app" : "Email · local inbox"}
-                    </label>
-                  ))}
-                  <div
-                    style={{
-                      fontSize: 12,
-                      marginTop: 8,
-                      color: "var(--text-muted)",
-                    }}
-                  >
-                    Browser push is unavailable until delivery credentials and
-                    customer opt-in are configured.
-                  </div>
-                </fieldset>
-                <label>
-                  Audience
-                  <select
-                    className="input"
-                    disabled={!editable}
-                    value={draft.audience}
-                    onChange={(e) =>
-                      setDraft({ ...draft, audience: e.target.value })
-                    }
-                  >
-                    {audiences.map((a) => (
-                      <option value={a.id} key={a.id}>
-                        {a.id.replace("_", " ")}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Destination
-                  <select
-                    className="input"
-                    disabled={!editable}
-                    value={draft.destination}
-                    onChange={(e) =>
-                      setDraft({ ...draft, destination: e.target.value })
-                    }
-                  >
-                    {destinations.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </select>
-                </label>
-                <p role="status" style={{ fontSize: 12 }}>
-                  {dirty
-                    ? "Unsaved changes"
-                    : record
-                      ? "All changes saved"
-                      : "New draft"}
-                </p>
-              </div>
-            </Card>
-            <div style={{ display: "grid", gap: 16 }}>
-              <Card title="Message preview">
-                <strong>{draft.title || "Your next story starts here"}</strong>
-                <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                  {draft.body || "Write a message for the MGTV community."}
-                </p>
-                <span>
-                  {draft.category} · {draft.destination}
-                </span>
-              </Card>
-              <Card title="Audience segments">
-                {audiences.map((a) => (
-                  <div
-                    key={a.id}
-                    style={{
-                      padding: "8px 0",
-                      fontSize: 12,
-                      borderBottom: "1px solid var(--border)",
-                    }}
-                  >
-                    <strong>{a.id.replace("_", " ")}</strong>
-                    <div>
-                      {a.inApp} profiles · {a.email} email opt-ins
+                      <TextField
+                        label="Message"
+                        multiline
+                        rows={5}
+                        value={draft.body}
+                        maxLength={400}
+                        disabled={!editable}
+                        onChange={(e) =>
+                          setDraft({ ...draft, body: e.target.value })
+                        }
+                      />
+                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        {draft.body.length}/400 characters · plain text
+                      </div>
+                      <label>
+                        Category
+                        <select
+                          className="input"
+                          value={draft.category}
+                          disabled={!editable}
+                          onChange={(e) =>
+                            setDraft({ ...draft, category: e.target.value })
+                          }
+                        >
+                          {categories.map((x) => (
+                            <option key={x}>{x}</option>
+                          ))}
+                        </select>
+                      </label>
                     </div>
-                  </div>
-                ))}
-                <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                  Counts use the System category and current preferences.
-                  Delivery rechecks the saved category, account status, profile
-                  allowance and subscription. No inferred interests.
-                </p>
+                  )}
+                  {step === "audience" && (
+                    <div className="nt-step-fields">
+                      <fieldset
+                        disabled={!editable}
+                        style={{ border: 0, padding: 0 }}
+                      >
+                        <legend>Channels</legend>
+                        {["in_app", "email"].map((x) => (
+                          <label
+                            key={x}
+                            className="nt-channel-choice"
+                            style={{
+                              display: "inline-flex",
+                              gap: 6,
+                              marginRight: 16,
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={draft.channels.includes(x)}
+                              onChange={() =>
+                                setDraft({
+                                  ...draft,
+                                  channels: draft.channels.includes(x)
+                                    ? draft.channels.filter(
+                                        (c: string) => c !== x,
+                                      )
+                                    : [...draft.channels, x],
+                                })
+                              }
+                            />
+                            <MediaIcon
+                              name={x === "in_app" ? "bell" : "mail"}
+                              size={18}
+                            />
+                            {x === "in_app" ? "In-app" : "Email · local inbox"}
+                          </label>
+                        ))}
+                        <div
+                          style={{
+                            fontSize: 12,
+                            marginTop: 8,
+                            color: "var(--text-muted)",
+                          }}
+                        >
+                          Browser push is unavailable until delivery credentials
+                          and customer opt-in are configured.
+                        </div>
+                      </fieldset>
+                      <label>
+                        Audience
+                        <select
+                          className="input"
+                          disabled={!editable}
+                          value={draft.audience}
+                          onChange={(e) =>
+                            setDraft({ ...draft, audience: e.target.value })
+                          }
+                        >
+                          {audiences.map((a) => (
+                            <option value={a.id} key={a.id}>
+                              {audienceLabel(a.id)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  )}
+                  {step === "review" && (
+                    <div className="nt-step-fields">
+                      <NotificationPreview body={draft} editable={editable} />
+                      <label>
+                        Destination
+                        <select
+                          className="input"
+                          disabled={!editable}
+                          value={draft.destination}
+                          onChange={(e) =>
+                            setDraft({ ...draft, destination: e.target.value })
+                          }
+                        >
+                          {!destinations.includes(draft.destination) &&
+                            !editable && (
+                              <option value={draft.destination}>
+                                {draft.destination}
+                              </option>
+                            )}
+                          {destinations.map((x) => (
+                            <option key={x}>{x}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <p className="nt-footnote">
+                        {draft.channels.includes("in_app")
+                          ? "In-app delivery selected. "
+                          : "In-app delivery not selected. "}
+                        {draft.channels.includes("email")
+                          ? "Opted-in email goes to the private development inbox. "
+                          : "Email delivery not selected. "}
+                        Audience: {audienceLabel(draft.audience)}. Save before
+                        using delivery actions.
+                      </p>
+                    </div>
+                  )}
+                  <p role="status" style={{ fontSize: 12 }}>
+                    {dirty
+                      ? "Unsaved changes"
+                      : record
+                        ? "All changes saved"
+                        : "New draft"}
+                  </p>
+                </div>
+                <div className="nt-step-navigation">
+                  <button
+                    className="btn"
+                    disabled={step === "message"}
+                    onClick={() =>
+                      setStep(step === "review" ? "audience" : "message")
+                    }
+                  >
+                    <MediaIcon name="back" size={16} />
+                    Previous
+                  </button>
+                  <button
+                    className="btn"
+                    disabled={step === "review"}
+                    onClick={() =>
+                      setStep(step === "message" ? "audience" : "review")
+                    }
+                  >
+                    Next
+                    <MediaIcon name="arrow" size={16} />
+                  </button>
+                </div>
               </Card>
+            )}
+            <div style={{ display: "grid", gap: 16 }}>
+              {pane !== "overview" && step !== "review" && (
+                <Card title="Message preview">
+                  <NotificationPreview
+                    body={pane === "edit" ? draft : savedBody}
+                    editable={pane === "edit" && editable}
+                  />
+                </Card>
+              )}
+              <AudienceSummary
+                audiences={audiences}
+                selected={pane === "edit" ? draft.audience : savedBody.audience}
+              />
               {record && !template && (
                 <Card title="Delivery status">
-                  <p>{record.status}</p>
+                  <NotificationStatus status={record.status} />
                   {record.schedule_at && (
                     <p>{new Date(record.schedule_at).toLocaleString()}</p>
                   )}
@@ -659,12 +855,11 @@ function Workspace({ parts }: { parts: string[] }) {
                       Refresh outcome
                     </button>
                   )}
-                  {record.outcomes?.map((o: any) => (
-                    <p key={o.channel + o.status}>
-                      {o.channel}: {o.status} {o.count}
-                      {o.channel === "in_app" ? " · read " + o.opened : ""}
-                    </p>
-                  ))}
+                  <DeliveryMetrics outcomes={record.outcomes ?? []} />
+                  <p className="nt-footnote">
+                    Message status reflects processing. Check each channel's
+                    outcomes for delivered, skipped or failed counts.
+                  </p>
                   <p style={{ fontSize: 12 }}>
                     Email delivered means written to the development inbox.
                     Email opens are not tracked.
@@ -698,16 +893,6 @@ function Workspace({ parts }: { parts: string[] }) {
               )}
             </div>
           </div>
-          {record?.history?.length > 0 && (
-            <Card title="Activity history">
-              {record.history.map((h: any) => (
-                <p key={h.id}>
-                  {new Date(h.created_at).toLocaleString()} · {h.action}{" "}
-                  {h.details?.reason && "— " + h.details.reason}
-                </p>
-              ))}
-            </Card>
-          )}
         </>
       )}
       {action && (
@@ -723,10 +908,16 @@ function Workspace({ parts }: { parts: string[] }) {
                     ? "Cancel this message?"
                     : "Test saved message preview"
           }
-          onClose={() => setAction("")}
+          onClose={() => {
+            if (!busy) setAction("");
+          }}
           footer={
             <>
-              <button className="btn" onClick={() => setAction("")}>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => setAction("")}
+              >
                 Back
               </button>
               <button
@@ -753,8 +944,23 @@ function Workspace({ parts }: { parts: string[] }) {
                 ? "This queues real in-app notices and opted-in emails to the local inbox."
                 : action === "test"
                   ? "Preview only. No customer message is created."
-                  : "Scheduling uses your local time and stores UTC."}
+                  : action === "cancel"
+                    ? "Cancelling stops this unsent message. It does not recall delivered notices."
+                    : "Scheduling uses your local time and stores UTC."}
           </p>
+          {!template && (
+            <div className="nt-message-review">
+              <span className="nt-eyebrow">
+                SAVED VERSION {record?.version}
+              </span>
+              <h3>{savedBody.title}</h3>
+              <p>{savedBody.body}</p>
+              <ChannelChips channels={savedBody.channels ?? []} />
+              <p>
+                {audienceLabel(savedBody.audience)} · {savedBody.destination}
+              </p>
+            </div>
+          )}
           {action === "schedule" && (
             <TextField
               label="Send at · local time"
@@ -772,8 +978,7 @@ function Workspace({ parts }: { parts: string[] }) {
       )}
       {test && (
         <Modal title="Saved message test preview" onClose={() => setTest(null)}>
-          <h3>{test.title}</h3>
-          <p style={{ whiteSpace: "pre-wrap" }}>{test.body}</p>
+          <NotificationPreview body={test} />
           <p>{test.notice}</p>
         </Modal>
       )}

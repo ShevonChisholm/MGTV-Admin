@@ -1,4 +1,7 @@
 const paths: Record<string, string> = {
+  bell: "M6 8a6 6 0 0 1 12 0v6l3 3H3l3-3V8Zm3 12a3 3 0 0 0 6 0",
+  mail: "M3 5h18v14H3V5Zm0 1 9 7 9-7",
+  send: "m3 3 19 9-19 9 4-9-4-9Zm4 9h15",
   food: "M4 3v7m3-7v7m3-7v7M4 7h6m-3 3v11m11-18c-3 3-3 8 0 8h2V3h-2Zm2 8v10",
   travel: "m3 12 18-8-8 18-2-9-8-1Zm8 1 10-9",
   fashion: "m8 3 4 2 4-2 6 6-4 3-2-2v11H8V10l-2 2-4-3 6-6Z",
