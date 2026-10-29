@@ -1,6 +1,6 @@
 # Partnerships and customer-plan administration
 
-Local verification completed 29 October 2026. No hosted rollout yet. DRM and production email remain pending.
+Local verification completed 29 October 2026. API and admin are now deployed to the disposable preview; authenticated hosted acceptance awaits preview-owner MFA recovery. DRM and production email remain pending.
 
 ## Implemented UI
 
@@ -19,10 +19,12 @@ Customer plan configuration compares provider sandbox prices and benefits. Futur
 - Plan before/after review and required reason verified; temporary edit cancelled. Roots, Rhythm and Gold policies remain unchanged.
 - Agreement detail, service wizard, plan table and plan review fit 320/390/768/1440px without horizontal page overflow.
 - A stale-section render crash found during navigation was fixed through scoped loading and stale-response guards. Section-switch rechecks passed; final browser console had no errors/warnings.
-- No real agreement was approved, accepted or activated, no payment or payout was attempted, and no hosted permissions were granted.
+- No real agreement was approved, accepted or activated and no payment or payout was attempted. The six specifically approved hosted permissions were granted through the audited one-time release hook.
 
 ## Access and evidence
 
-Local partnership read/manage/approve/activate grants and the separately approved customer-plan read/manage grants were audited and revoked old sessions. Fresh MFA sign-in was used. The only additional review record is an inactive fictional local partner, with no agreement or benefits. Preview grants remain separately unapproved.
+Local partnership read/manage/approve/activate grants and the separately approved customer-plan read/manage grants were audited and revoked old sessions. Fresh MFA sign-in was used. The only additional review record is an inactive fictional local partner, with no agreement or benefits. The six preview partnership/customer-plan permissions were separately approved, granted once and audited; previous sessions were revoked.
 
 Screenshots are stored under `docs/evidence/partnerships/`. Architecture, concrete relationship mappings, migration safety and financial execution boundaries are documented in the API repository's `docs/partnerships-commercial-model.md`. Paid partner activation/settlement and automatic benefit delivery remain blocked until their adapters and policies exist.
+
+Hosted admin commit `0e64c19` is READY at https://mgtv-admin.vercel.app, backed by API `40ef9fe`. Encrypted backup and migrations passed; four memberships, one checkout and tier policies were preserved. Hosted browser acceptance is pending because the preview administrator needs controlled MFA re-enrolment; the local account is separate. No MFA reset has been applied.
