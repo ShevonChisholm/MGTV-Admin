@@ -5,6 +5,16 @@ import { useRouter, useDirtyGuard } from "../router";
 import { Card, Modal, EmptyState, Badge } from "../ui";
 import { PageActions } from "../components/PageHeader";
 import StaffAuth from "./StaffAuth";
+import MediaIcon from "../components/MediaIcon";
+import { ContentStatus } from "../components/ContentVisual";
+import HomepageCanvas, {
+  HomepageImage,
+  homepageImage,
+  homepageKindIcon,
+  HomepageSavedPreview,
+  HomepageLoading,
+} from "../components/HomepageVisual";
+import "../components/HomepageVisual.css";
 type Ref = { kind: string; id: string };
 type Section = {
   id: string;
@@ -100,14 +110,27 @@ function HomepageWorkspace({ surface }: { surface: string }) {
     [cursor, setCursor] = useState<string | null>(null),
     [pickerBusy, setPickerBusy] = useState(false),
     [pickerError, setPickerError] = useState(""),
-    [labels, setLabels] = useState<Record<string, any>>({});
+    [labels, setLabels] = useState<Record<string, any>>({}),
+    [savedLabels, setSavedLabels] = useState<Record<string, any>>({}),
+    [pane, setPane] = useState("canvas"),
+    [editTarget, setEditTarget] = useState("hero"),
+    [confirmAction, setConfirmAction] = useState("");
   const commandKey = useRef<{ body: string; key: string } | null>(null),
-    errorRef = useRef<HTMLDivElement>(null);
+    errorRef = useRef<HTMLDivElement>(null),
+    pickerRequest = useRef(0),
+    alive = useRef(true);
   const dirty =
       !!record && JSON.stringify(draft) !== JSON.stringify(record.draft),
     dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
   useDirtyGuard(() => dirtyRef.current);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      pickerRequest.current++;
+    };
+  }, []);
   const can = (p: string) => session?.permissions.includes(p),
     base = "/admin/homepage/" + surface;
   function problem(e: any) {
@@ -132,6 +155,22 @@ function HomepageWorkspace({ surface }: { surface: string }) {
       ...(p?.preview?.hero ?? []),
       ...(p?.preview?.sections ?? []).flatMap((s: any) => s.items),
     ];
+    setSavedLabels(
+      Object.fromEntries(
+        entries.map((r: any) => [
+          key(r),
+          {
+            ...r,
+            title: r.content.title,
+            status: "published",
+            image:
+              r.content.artwork?.landscapeUrl ??
+              r.content.coverUrl ??
+              r.content.artwork?.portraitUrl,
+          },
+        ]),
+      ),
+    );
     setLabels((old) => ({
       ...old,
       ...Object.fromEntries(
@@ -141,24 +180,34 @@ function HomepageWorkspace({ surface }: { surface: string }) {
             ...r,
             title: r.content.title,
             status: "published",
-            image: r.content.artwork?.landscapeUrl ?? r.content.coverUrl,
+            image:
+              r.content.artwork?.landscapeUrl ??
+              r.content.coverUrl ??
+              r.content.artwork?.portraitUrl,
           },
         ]),
       ),
     }));
   }
   async function review() {
-    const p = await api(base + "/publication-check");
+    setPreview(null);
+    const [p, h] = await Promise.all([
+      api(base + "/publication-check"),
+      api(base + "/history"),
+    ]);
+    if (!alive.current) return;
     setPreview(p);
     remember(p);
-    setHistory((await api(base + "/history")).items);
+    setHistory(h.items);
   }
   async function load() {
     const s = await api("/admin/session");
+    if (!alive.current) return;
     setSession(s);
     if (!s.permissions.includes("homepage.read"))
       throw Error("Homepage access requires homepage.read permission.");
     const r = await api(base);
+    if (!alive.current) return;
     setRecord(r);
     setDraft(r.draft);
     await review();
@@ -213,6 +262,7 @@ function HomepageWorkspace({ surface }: { surface: string }) {
           : "Published layout restored to a new draft. It has not been republished.",
     );
     setReason("");
+    setConfirmAction("");
     await review();
   }
   const chosen =
@@ -227,6 +277,7 @@ function HomepageWorkspace({ surface }: { surface: string }) {
       setPickerError("This selection is full. Remove an item first.");
       return;
     }
+    setPickerError("");
     if (picking === "hero") change({ ...draft, hero: next });
     else if (picking) patch(picking, { items: next });
   }
@@ -234,6 +285,7 @@ function HomepageWorkspace({ surface }: { surface: string }) {
   useEffect(() => {
     if (!picking) return;
     let active = true;
+    const request = ++pickerRequest.current;
     setOptions([]);
     setCursor(null);
     setPickerError("");
@@ -242,7 +294,7 @@ function HomepageWorkspace({ surface }: { surface: string }) {
       "/admin/" + paths[kind] + "?limit=24&q=" + encodeURIComponent(search),
     )
       .then((p) => {
-        if (!active) return;
+        if (!active || request !== pickerRequest.current) return;
         const rows = p.items ?? [];
         setOptions(rows);
         setCursor(p.nextCursor);
@@ -256,6 +308,7 @@ function HomepageWorkspace({ surface }: { surface: string }) {
                 kind,
                 title: r.draft?.title ?? r.title ?? "Untitled",
                 status: r.status,
+                image: homepageImage(kind, r),
               },
             ]),
           ),
@@ -269,9 +322,11 @@ function HomepageWorkspace({ surface }: { surface: string }) {
       });
     return () => {
       active = false;
+      pickerRequest.current++;
     };
   }, [picking, kind, search]);
   async function more() {
+    const request = pickerRequest.current;
     setPickerBusy(true);
     setPickerError("");
     try {
@@ -294,7 +349,11 @@ function HomepageWorkspace({ surface }: { surface: string }) {
             "=" +
             encodeURIComponent(cursor ?? ""),
         );
-      setOptions((old) => [...old, ...p.items]);
+      if (request !== pickerRequest.current) return;
+      setOptions((old) => [
+        ...old,
+        ...p.items.filter((r: any) => !old.some((x) => x.id === r.id)),
+      ]);
       setCursor(p.nextCursor);
       setLabels((old) => ({
         ...old,
@@ -306,14 +365,15 @@ function HomepageWorkspace({ surface }: { surface: string }) {
               id: r.id,
               title: r.draft?.title ?? r.title,
               status: r.status,
+              image: homepageImage(kind, r),
             },
           ]),
         ),
       }));
     } catch (e: any) {
-      setPickerError(e.message);
+      if (request === pickerRequest.current) setPickerError(e.message);
     } finally {
-      setPickerBusy(false);
+      if (request === pickerRequest.current) setPickerBusy(false);
     }
   }
   function openPicker(id: string) {
@@ -322,64 +382,91 @@ function HomepageWorkspace({ surface }: { surface: string }) {
     setQ("");
     setSearch("");
   }
+  function addSection(kind: string) {
+    const id = crypto.randomUUID();
+    change({
+      ...draft,
+      sections: [
+        ...draft.sections,
+        {
+          id,
+          label:
+            kind === "editorial"
+              ? "New editorial section"
+              : kind === "continue-watching"
+                ? "Continue Watching"
+                : "MGTV+",
+          description: "",
+          enabled: true,
+          kind,
+          layout: "rail",
+          destination: "",
+          items: [],
+        },
+      ],
+    });
+    setEditTarget(id);
+  }
   function selection(refs: Ref[], update: (refs: Ref[]) => void) {
     return (
-      <ol style={{ paddingLeft: 22, display: "grid", gap: 8 }}>
-        {refs.map((r, i) => (
-          <li key={key(r)}>
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
-            >
-              <span style={{ flex: "1 1 140px", overflowWrap: "anywhere" }}>
-                {labels[key(r)]?.title ?? r.id}
-                <small
-                  style={{ display: "block", color: "var(--text-secondary)" }}
-                >
-                  {r.kind}
-                  {labels[key(r)]?.status ? " · " + labels[key(r)].status : ""}
-                </small>
+      <ol
+        className="hp-selection"
+        aria-label="Selected content in display order"
+      >
+        {refs.map((r, i) => {
+          const label = labels[key(r)],
+            title = label?.title ?? "Selection needs review";
+          return (
+            <li key={key(r)}>
+              <span className="hp-position">
+                {String(i + 1).padStart(2, "0")}
               </span>
-              <button
-                className="btn btn-sm"
-                disabled={i === 0}
-                aria-label={
-                  "Move " + (labels[key(r)]?.title ?? r.kind) + " earlier"
-                }
-                onClick={() => update(move(refs, i, -1))}
-              >
-                Up
-              </button>
-              <button
-                className="btn btn-sm"
-                disabled={i === refs.length - 1}
-                aria-label={
-                  "Move " + (labels[key(r)]?.title ?? r.kind) + " later"
-                }
-                onClick={() => update(move(refs, i, 1))}
-              >
-                Down
-              </button>
-              <button
-                className="btn btn-sm"
-                onClick={() => update(refs.filter((x) => key(x) !== key(r)))}
-              >
-                Remove
-              </button>
-            </div>
-          </li>
-        ))}
+              <HomepageImage src={label?.image} kind={r.kind} />
+              <div className="hp-selection-copy">
+                <strong>{title}</strong>
+                <span>
+                  {r.kind}
+                  {label?.status
+                    ? " · " + label.status
+                    : " · resolve in publication review"}
+                </span>
+              </div>
+              <div className="hp-item-actions">
+                <button
+                  className="btn btn-sm"
+                  disabled={i === 0}
+                  aria-label={"Move " + title + " earlier"}
+                  onClick={() => update(move(refs, i, -1))}
+                >
+                  <span className="hp-up">
+                    <MediaIcon name="arrow" size={16} />
+                  </span>
+                </button>
+                <button
+                  className="btn btn-sm"
+                  disabled={i === refs.length - 1}
+                  aria-label={"Move " + title + " later"}
+                  onClick={() => update(move(refs, i, 1))}
+                >
+                  <span className="hp-down">
+                    <MediaIcon name="arrow" size={16} />
+                  </span>
+                </button>
+                <button
+                  className="btn btn-sm"
+                  aria-label={"Remove " + title + " from selection"}
+                  onClick={() => update(refs.filter((x) => key(x) !== key(r)))}
+                >
+                  <MediaIcon name="trash" size={16} />
+                </button>
+              </div>
+            </li>
+          );
+        })}
       </ol>
     );
   }
-  if (!loaded)
-    return (
-      <LoadingState label={<>Loading editorial layout…</>} variant="form" />
-    );
+  if (!loaded) return <HomepageLoading />;
   if (!session)
     return (
       <div className="page-pad">
@@ -401,10 +488,78 @@ function HomepageWorkspace({ surface }: { surface: string }) {
         )}
       </div>
     );
-  const readOnly = !can("homepage.write");
+  const readOnly = !can("homepage.write"),
+    reviewCurrent =
+      preview?.revisionId === record.draftRevisionId &&
+      preview?.version === record.version;
   return (
     <div className="page-pad homepage-workspace">
-      {surface==='home'&&<Card title="Automatic lifecycle rails"><p>New Releases, approved Coming Soon first looks, profile-owned Watch Again and Leaving Soon appear below the hero when eligible records exist. They use the existing MGTV cards and current API availability, not manually selected or sample items. Approve first looks in the owning content editor and manage delivery in Notifications.</p></Card>}
+      <div className="hp-workspace-head">
+        <div>
+          <span className="hp-kicker">
+            <MediaIcon name="grid" size={15} /> MGTV · THE FRONT ROW
+          </span>
+          <h2>Set the stage for what’s next.</h2>
+          <p>
+            Shape the first impression, arrange your stories and review the
+            saved page before it reaches viewers.
+          </p>
+        </div>
+        <div className="hp-status">
+          <ContentStatus status={record.status} />
+          <span>Saved version {record.version}</span>
+        </div>
+      </div>
+      <nav className="hp-surfaces" aria-label="Editorial pages">
+        {surfaces.map((s) => (
+          <button
+            key={s}
+            aria-current={surface === s ? "page" : undefined}
+            disabled={busy}
+            onClick={() => navigate("/admin/homepage/" + s)}
+          >
+            <MediaIcon
+              name={
+                s === "home"
+                  ? "grid"
+                  : s === "shows"
+                    ? "series"
+                    : s === "movies"
+                      ? "film"
+                      : s === "music"
+                        ? "audio"
+                        : s === "sports"
+                          ? "sport"
+                          : s === "events"
+                            ? "calendar"
+                            : s === "lifestyle"
+                              ? "culture"
+                              : "review"
+              }
+              size={18}
+            />
+            {s === "home" ? "Homepage" : s[0].toUpperCase() + s.slice(1)}
+          </button>
+        ))}
+      </nav>
+      <nav className="hp-view-nav" aria-label="Layout workspace">
+        {[
+          ["canvas", "Saved page canvas", "grid"],
+          ["edit", "Arrange draft", "edit"],
+          ["preview", "Saved preview", "image"],
+          ["review", "Review & publish", "check"],
+          ["history", "Activity", "clock"],
+        ].map(([id, label, icon]) => (
+          <button
+            key={id}
+            aria-pressed={pane === id}
+            onClick={() => setPane(id)}
+          >
+            <MediaIcon name={icon} size={16} />
+            {label}
+          </button>
+        ))}
+      </nav>
       <PageActions>
         {dirty && (
           <span role="status" style={{ color: "var(--yellow)" }}>
@@ -416,6 +571,7 @@ function HomepageWorkspace({ surface }: { surface: string }) {
           disabled={busy || !dirty}
           onClick={() => {
             setDraft(record.draft);
+            setEditTarget("hero");
             setNotice("Unsaved changes discarded.");
           }}
         >
@@ -441,29 +597,103 @@ function HomepageWorkspace({ surface }: { surface: string }) {
         </div>
       )}
       {notice && <p role="status">{notice}</p>}
-      <label style={{ display: "block", maxWidth: 360, marginBottom: 18 }}>
-        Page
-        <select
-          className="input"
-          value={surface}
-          disabled={busy}
-          onChange={(e) => navigate("/admin/homepage/" + e.target.value)}
-        >
-          {surfaces.map((s) => (
-            <option key={s} value={s}>
-              {s === "home"
-                ? "Homepage"
-                : s[0].toUpperCase() + s.slice(1) + " — Featured"}
-            </option>
-          ))}
-        </select>
-      </label>
-      <p style={{ color: "var(--text-secondary)", maxWidth: 740 }}>
-        Arrange editorial selections, then save and review before publishing.
-        Content availability and profile restrictions still apply.
+      <p className="hp-version-note" role="status">
+        {dirty
+          ? "Unsaved edits are kept in Arrange draft. The saved canvas and preview remain unchanged."
+          : record.status !== "published"
+            ? "This layout is not currently published. Review the saved draft."
+            : record.hasUnpublishedChanges
+              ? "The saved draft is a separate revision from the published layout."
+              : "Saved and published revisions match."}{" "}
+        Content availability and profile access still apply.
       </p>
-      <div className="editor-layout" style={{ alignItems: "start" }}>
-        <div>
+      {(pane === "canvas" || pane === "preview") && !reviewCurrent && (
+        <Card title="Refresh the saved layout review">
+          <p>
+            Check the current saved version to resolve its available content and
+            artwork.
+          </p>
+          <button
+            className="btn"
+            disabled={busy || dirty}
+            onClick={() => void run(review)}
+          >
+            {busy ? "Checking saved layout…" : "Check requirements"}
+          </button>
+        </Card>
+      )}
+      {pane === "canvas" && reviewCurrent && (
+        <HomepageCanvas
+          layout={record.draft}
+          labels={savedLabels}
+          surface={surface}
+          onEdit={(id) => {
+            setEditTarget(id);
+            setPane("edit");
+          }}
+        />
+      )}
+      {pane === "preview" && reviewCurrent && (
+        <HomepageSavedPreview
+          preview={preview?.preview}
+          surface={surface}
+          dirty={dirty}
+        />
+      )}
+      {surface === "home" && pane === "canvas" && (
+        <section className="hp-lifecycle">
+          <div className="hp-section-heading">
+            <MediaIcon name="clock" />
+            <div>
+              <h3>Stories find their moment</h3>
+              <p>
+                These automatic rails appear when eligible content or genuine
+                profile history is available. They are separate from your
+                editorial selections.
+              </p>
+            </div>
+          </div>
+          <div>
+            {[
+              ["New Releases", "First available within 30 days", "plus"],
+              [
+                "Coming Soon",
+                "Approved first looks within 30 days",
+                "calendar",
+              ],
+              [
+                "Watch Again",
+                "Completed viewing for the selected profile",
+                "film",
+              ],
+              ["Leaving Soon", "Availability ending within 14 days", "clock"],
+            ].map(([title, text, icon]) => (
+              <article key={title}>
+                <MediaIcon name={icon} />
+                <h4>{title}</h4>
+                <p>{text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+      <div className="hp-workspace-body">
+        <div hidden={pane !== "edit"}>
+          <label className="hp-edit-target">
+            Editing
+            <select
+              className="input"
+              value={editTarget}
+              onChange={(e) => setEditTarget(e.target.value)}
+            >
+              <option value="hero">Featured hero</option>
+              {draft.sections.map((s, i) => (
+                <option key={s.id} value={s.id}>
+                  {i + 1}. {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <fieldset
             disabled={busy || readOnly}
             style={{
@@ -474,171 +704,187 @@ function HomepageWorkspace({ surface }: { surface: string }) {
               gap: 14,
             }}
           >
-            <Card title="Featured hero">
-              <p>
-                Choose up to five published items in display order. Titles,
-                artwork and short clips come from their published content
-                revisions.
-              </p>
-              {selection(draft.hero, (hero) => change({ ...draft, hero }))}
-              <button className="btn" onClick={() => openPicker("hero")}>
-                Choose featured content
-              </button>
-            </Card>
+            <div hidden={editTarget !== "hero"}>
+              <Card
+                title={
+                  <span className="hp-icon-title">
+                    <MediaIcon name="image" />
+                    Featured hero
+                  </span>
+                }
+              >
+                <p>
+                  Choose up to five published items in display order. Titles,
+                  artwork and short clips come from their published content
+                  revisions.
+                </p>
+                {selection(draft.hero, (hero) => change({ ...draft, hero }))}
+                <button className="btn" onClick={() => openPicker("hero")}>
+                  Choose featured content
+                </button>
+              </Card>
+            </div>
             {surface === "home" && (
               <>
                 <h2 style={{ fontSize: 16 }}>Sections</h2>
                 {draft.sections.map((s, i) => (
-                  <Card
-                    key={s.id}
-                    title={
-                      <span
-                        style={{
-                          display: "flex",
-                          gap: 8,
-                          alignItems: "center",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <span>{i + 1}</span>
-                        <Badge color={s.enabled ? "#C9A84C" : "#9ca3af"}>
-                          {s.kind === "editorial"
-                            ? "Editorial selection"
-                            : s.kind === "continue-watching"
-                              ? "Personal collection"
-                              : "Membership banner"}
-                        </Badge>
-                      </span>
-                    }
-                    aside={
-                      <span style={{ display: "flex", gap: 6 }}>
-                        <button
-                          className="btn btn-sm"
-                          disabled={i === 0}
-                          aria-label={"Move " + s.label + " up"}
-                          onClick={() =>
-                            change({
-                              ...draft,
-                              sections: move(draft.sections, i, -1),
-                            })
-                          }
+                  <div key={s.id} hidden={editTarget !== s.id}>
+                    <Card
+                      title={
+                        <span
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                          }}
                         >
-                          Up
-                        </button>
-                        <button
-                          className="btn btn-sm"
-                          disabled={i === draft.sections.length - 1}
-                          aria-label={"Move " + s.label + " down"}
-                          onClick={() =>
-                            change({
-                              ...draft,
-                              sections: move(draft.sections, i, 1),
-                            })
-                          }
-                        >
-                          Down
-                        </button>
-                      </span>
-                    }
-                  >
-                    <div style={{ display: "grid", gap: 12 }}>
-                      <label>
-                        Section label
-                        <input
-                          className="input"
-                          maxLength={100}
-                          value={s.label}
-                          onChange={(e) =>
-                            patch(s.id, { label: e.target.value })
-                          }
-                        />
-                      </label>
-                      <label>
-                        Section description
-                        <input
-                          className="input"
-                          maxLength={300}
-                          value={s.description}
-                          onChange={(e) =>
-                            patch(s.id, { description: e.target.value })
-                          }
-                        />
-                      </label>
-                      <label style={{ display: "flex", gap: 8 }}>
-                        <input
-                          type="checkbox"
-                          checked={s.enabled}
-                          onChange={(e) =>
-                            patch(s.id, { enabled: e.target.checked })
-                          }
-                        />
-                        Visible to customers
-                      </label>
-                      {s.kind === "editorial" && (
-                        <>
-                          <label>
-                            Layout
-                            <select
-                              className="input"
-                              value={s.layout}
-                              onChange={(e) =>
-                                patch(s.id, { layout: e.target.value })
-                              }
-                            >
-                              <option value="rail">Content rail</option>
-                              <option value="grid">Content grid</option>
-                              <option value="news">Editorial split</option>
-                            </select>
-                          </label>
-                          <label>
-                            Browse destination
-                            <select
-                              className="input"
-                              value={s.destination}
-                              onChange={(e) =>
-                                patch(s.id, { destination: e.target.value })
-                              }
-                            >
-                              {[
-                                "",
-                                ...surfaces.filter((x) => x !== "home"),
-                                "my-list",
-                              ].map((x) => (
-                                <option key={x} value={x}>
-                                  {x || "No browse link"}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          {selection(s.items, (items) =>
-                            patch(s.id, { items }),
-                          )}
+                          <span>{i + 1}</span>
+                          <Badge color={s.enabled ? "#C9A84C" : "#9ca3af"}>
+                            {s.kind === "editorial"
+                              ? "Editorial selection"
+                              : s.kind === "continue-watching"
+                                ? "Personal collection"
+                                : "Membership banner"}
+                          </Badge>
+                        </span>
+                      }
+                      aside={
+                        <span style={{ display: "flex", gap: 6 }}>
                           <button
-                            className="btn"
-                            onClick={() => openPicker(s.id)}
+                            className="btn btn-sm"
+                            disabled={i === 0}
+                            aria-label={"Move " + s.label + " up"}
+                            onClick={() =>
+                              change({
+                                ...draft,
+                                sections: move(draft.sections, i, -1),
+                              })
+                            }
                           >
-                            Choose content
+                            <span className="hp-up">
+                              <MediaIcon name="arrow" size={16} />
+                            </span>
                           </button>
-                        </>
-                      )}
-                      <button
-                        className="btn btn-danger"
-                        onClick={() =>
-                          change({
-                            ...draft,
-                            sections: draft.sections.filter(
-                              (x) => x.id !== s.id,
-                            ),
-                          })
-                        }
-                      >
-                        Remove section from homepage
-                      </button>
-                      <small style={{ color: "var(--text-muted)" }}>
-                        Removing a section does not delete content.
-                      </small>
-                    </div>
-                  </Card>
+                          <button
+                            className="btn btn-sm"
+                            disabled={i === draft.sections.length - 1}
+                            aria-label={"Move " + s.label + " down"}
+                            onClick={() =>
+                              change({
+                                ...draft,
+                                sections: move(draft.sections, i, 1),
+                              })
+                            }
+                          >
+                            <span className="hp-down">
+                              <MediaIcon name="arrow" size={16} />
+                            </span>
+                          </button>
+                        </span>
+                      }
+                    >
+                      <div style={{ display: "grid", gap: 12 }}>
+                        <label>
+                          Section label
+                          <input
+                            className="input"
+                            maxLength={100}
+                            value={s.label}
+                            onChange={(e) =>
+                              patch(s.id, { label: e.target.value })
+                            }
+                          />
+                        </label>
+                        <label>
+                          Section description
+                          <input
+                            className="input"
+                            maxLength={300}
+                            value={s.description}
+                            onChange={(e) =>
+                              patch(s.id, { description: e.target.value })
+                            }
+                          />
+                        </label>
+                        <label style={{ display: "flex", gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={s.enabled}
+                            onChange={(e) =>
+                              patch(s.id, { enabled: e.target.checked })
+                            }
+                          />
+                          Visible to customers
+                        </label>
+                        {s.kind === "editorial" && (
+                          <>
+                            <label>
+                              Layout
+                              <select
+                                className="input"
+                                value={s.layout}
+                                onChange={(e) =>
+                                  patch(s.id, { layout: e.target.value })
+                                }
+                              >
+                                <option value="rail">Content rail</option>
+                                <option value="grid">Content grid</option>
+                                <option value="news">Editorial split</option>
+                              </select>
+                            </label>
+                            <label>
+                              Browse destination
+                              <select
+                                className="input"
+                                value={s.destination}
+                                onChange={(e) =>
+                                  patch(s.id, { destination: e.target.value })
+                                }
+                              >
+                                {[
+                                  "",
+                                  ...surfaces.filter((x) => x !== "home"),
+                                  "my-list",
+                                ].map((x) => (
+                                  <option key={x} value={x}>
+                                    {x || "No browse link"}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            {selection(s.items, (items) =>
+                              patch(s.id, { items }),
+                            )}
+                            <button
+                              className="btn"
+                              onClick={() => openPicker(s.id)}
+                            >
+                              Choose content
+                            </button>
+                          </>
+                        )}
+                        <button
+                          className="btn btn-danger"
+                          onClick={() => {
+                            change({
+                              ...draft,
+                              sections: draft.sections.filter(
+                                (x) => x.id !== s.id,
+                              ),
+                            });
+                            setEditTarget("hero");
+                          }}
+                        >
+                          <MediaIcon name="trash" size={16} /> Remove section
+                          from homepage
+                        </button>
+                        <small style={{ color: "var(--text-muted)" }}>
+                          Removing a section does not delete content.
+                        </small>
+                      </div>
+                    </Card>
+                  </div>
                 ))}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {["editorial", "continue-watching", "membership"].map(
@@ -651,31 +897,9 @@ function HomepageWorkspace({ surface }: { surface: string }) {
                           (kind !== "editorial" &&
                             draft.sections.some((s) => s.kind === kind))
                         }
-                        onClick={() =>
-                          change({
-                            ...draft,
-                            sections: [
-                              ...draft.sections,
-                              {
-                                id: crypto.randomUUID(),
-                                label:
-                                  kind === "editorial"
-                                    ? "New editorial section"
-                                    : kind === "continue-watching"
-                                      ? "Continue Watching"
-                                      : "MGTV+",
-                                description: "",
-                                enabled: true,
-                                kind,
-                                layout: "rail",
-                                destination: "",
-                                items: [],
-                              },
-                            ],
-                          })
-                        }
+                        onClick={() => addSection(kind)}
                       >
-                        Add{" "}
+                        <MediaIcon name="plus" size={16} /> Add{" "}
                         {kind === "editorial"
                           ? "editorial section"
                           : kind === "continue-watching"
@@ -689,8 +913,15 @@ function HomepageWorkspace({ surface }: { surface: string }) {
             )}
           </fieldset>
         </div>
-        <aside style={{ display: "grid", gap: 14, minWidth: 0 }}>
-          <Card title="Saved revision review">
+        <aside hidden={pane !== "review"}>
+          <Card
+            title={
+              <span className="hp-icon-title">
+                <MediaIcon name="check" />
+                Saved revision review
+              </span>
+            }
+          >
             <p>
               <Badge
                 color={record.status === "published" ? "#34d399" : "#C9A84C"}
@@ -703,7 +934,7 @@ function HomepageWorkspace({ surface }: { surface: string }) {
               {dirty
                 ? "Save your edits to refresh this preview."
                 : record.hasUnpublishedChanges
-                  ? "Saved draft differs from the published layout."
+                  ? "The saved draft is a separate revision from the published layout."
                   : "Saved and published revisions match."}
             </p>
             <button
@@ -744,9 +975,10 @@ function HomepageWorkspace({ surface }: { surface: string }) {
                   dirty ||
                   !reason.trim() ||
                   !preview?.ready ||
+                  !reviewCurrent ||
                   !can("homepage.publish")
                 }
-                onClick={() => void run(() => command("publish"))}
+                onClick={() => setConfirmAction("publish")}
               >
                 Publish saved layout
               </button>
@@ -759,7 +991,7 @@ function HomepageWorkspace({ surface }: { surface: string }) {
                   record.status !== "published" ||
                   !can("homepage.unpublish")
                 }
-                onClick={() => void run(() => command("unpublish"))}
+                onClick={() => setConfirmAction("unpublish")}
               >
                 Withdraw layout
               </button>
@@ -772,86 +1004,88 @@ function HomepageWorkspace({ surface }: { surface: string }) {
                   !record.publishedRevisionId ||
                   readOnly
                 }
-                onClick={() => void run(() => command("restore-published"))}
+                onClick={() => setConfirmAction("restore-published")}
               >
                 Restore published layout to draft
               </button>
             </div>
           </Card>
-          <Card title="Customer layout preview">
-            <p>
-              Published content resolved from the saved draft. Hidden and empty
-              sections are omitted. Profile filtering applies on customer pages.
-            </p>
-            <div
-              style={{
-                background: "#0b0c0e",
-                borderRadius: 10,
-                padding: 12,
-                display: "grid",
-                gap: 18,
-              }}
-            >
-              {[
-                {
-                  id: "hero",
-                  label: "Featured hero",
-                  items: preview?.preview?.hero ?? [],
-                },
-                ...(preview?.preview?.sections ?? []),
-              ].map((s: any) => (
-                <section key={s.id}>
-                  <h3>{s.label}</h3>
-                  {s.kind === "continue-watching" ? (
-                    <p>Actual progress for the selected customer profile.</p>
-                  ) : s.kind === "membership" ? (
-                    <p>Existing MGTV+ banner.</p>
-                  ) : (
-                    <div
-                      style={{ display: "flex", gap: 10, overflowX: "auto" }}
-                    >
-                      {s.items.map((r: any) => (
-                        <div key={key(r)} style={{ width: 140, flexShrink: 0 }}>
-                          <img
-                            src={
-                              r.content.artwork?.landscapeUrl ??
-                              r.content.coverUrl
-                            }
-                            alt=""
-                            style={{
-                              width: "100%",
-                              aspectRatio: "16/9",
-                              objectFit: "cover",
-                              borderRadius: 6,
-                            }}
-                          />
-                          <p>{r.content.title}</p>
-                          <small>{r.kind}</small>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              ))}
-            </div>
-          </Card>
-          <Card title="Recent activity">
-            <ul>
+        </aside>
+        <aside hidden={pane !== "history"}>
+          <Card
+            title={
+              <span className="hp-icon-title">
+                <MediaIcon name="clock" />
+                How this page took shape
+              </span>
+            }
+          >
+            <ul className="hp-history">
               {history.map((x: any) => (
                 <li key={x.id} style={{ marginBottom: 10 }}>
-                  {x.action.replace("homepage.", "")} · {x.actorName}
-                  <small
-                    style={{ display: "block", color: "var(--text-muted)" }}
-                  >
-                    {new Date(x.created_at).toLocaleString()} ·{" "}
-                    {x.details.reason ?? "Saved revision"}
-                  </small>
+                  <MediaIcon
+                    name={x.action.includes("publish") ? "globe" : "edit"}
+                  />
+                  <div>
+                    <strong>
+                      {x.action.replace("homepage.", "").replace(/_/g, " ")}
+                    </strong>
+                    <span>{x.actorName}</span>
+                    <small
+                      style={{ display: "block", color: "var(--text-muted)" }}
+                    >
+                      {new Date(x.created_at).toLocaleString()} ·{" "}
+                      {x.details.reason ?? "Saved revision"}
+                    </small>
+                  </div>
                 </li>
               ))}
             </ul>
           </Card>
         </aside>
       </div>
+      {confirmAction && (
+        <Modal
+          title={
+            confirmAction === "publish"
+              ? "Publish saved layout"
+              : confirmAction === "unpublish"
+                ? "Withdraw this layout"
+                : "Restore published layout to draft"
+          }
+          onClose={() => {
+            if (!busy) setConfirmAction("");
+          }}
+          footer={
+            <button
+              className="btn btn-primary"
+              disabled={busy || dirty || !reason.trim()}
+              onClick={() => void run(() => command(confirmAction))}
+            >
+              {confirmAction === "publish"
+                ? "Confirm publication"
+                : confirmAction === "unpublish"
+                  ? "Confirm withdrawal"
+                  : "Confirm restore"}
+            </button>
+          }
+        >
+          <div className="hp-confirm">
+            <MediaIcon name="review" size={30} />
+            <h3>
+              {surface === "home" ? "Homepage" : surface + " featured content"}
+            </h3>
+            <p>
+              Saved version {record.version}.{" "}
+              {confirmAction === "restore-published"
+                ? "Restoring creates a draft; it does not republish it."
+                : "This changes the layout only. The selected content keeps its own publication and access settings."}
+            </p>
+            <blockquote>{reason}</blockquote>
+            {error && <p role="alert">{error}</p>}
+          </div>
+        </Modal>
+      )}
       {picking && (
         <Modal
           title={
@@ -860,7 +1094,7 @@ function HomepageWorkspace({ surface }: { surface: string }) {
               : "Choose section content"
           }
           onClose={() => setPicking(null)}
-          width={680}
+          width={960}
           footer={
             <button
               className="btn btn-primary"
@@ -897,6 +1131,7 @@ function HomepageWorkspace({ surface }: { surface: string }) {
           >
             <input
               className="input"
+              style={{ minWidth: 0, flex: 1 }}
               aria-label="Search selectable content"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -906,43 +1141,69 @@ function HomepageWorkspace({ surface }: { surface: string }) {
             </button>
           </form>
           <p>
-            Draft items may be prepared here, but publication requires all
-            visible selections to be published and available.
+            Names and artwork reflect saved content drafts. Publication review
+            uses published, available revisions. {chosen.length} of{" "}
+            {picking === "hero" ? 5 : 24} selected.
           </p>
           {pickerError && <p role="alert">{pickerError}</p>}
           {pickerBusy && (
-            <LoadingState label={<>Loading content…</>} variant="table" />
+            <LoadingState label={<>Loading content…</>} variant="cards" />
           )}
-          <ul
-            style={{ listStyle: "none", padding: 0, display: "grid", gap: 8 }}
-          >
+          {chosen.length > 0 && (
+            <details className="hp-picker-selected">
+              <summary>Review selected content ({chosen.length})</summary>
+              <ul>
+                {chosen.map((r) => (
+                  <li key={key(r)}>
+                    <HomepageImage src={labels[key(r)]?.image} kind={r.kind} />
+                    <span>
+                      {labels[key(r)]?.title ?? "Selection needs review"}
+                      <small>{r.kind}</small>
+                    </span>
+                    <button
+                      className="btn btn-sm"
+                      aria-label={
+                        "Remove selected " + (labels[key(r)]?.title ?? r.kind)
+                      }
+                      onClick={() => toggle(r)}
+                      disabled={busy || !can("homepage.write")}
+                    >
+                      <MediaIcon name="trash" size={15} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <ul className="hp-picker-grid" aria-label="Selectable content">
             {options.map((r) => (
               <li key={r.id}>
                 <label
-                  style={{
-                    display: "flex",
-                    gap: 12,
-                    padding: 10,
-                    border: "1px solid var(--border-light)",
-                    borderRadius: 8,
-                  }}
+                  className={
+                    "hp-pick-card " +
+                    (chosen.some((x) => x.kind === kind && x.id === r.id)
+                      ? "is-selected"
+                      : "")
+                  }
                 >
-                  <input
-                    type="checkbox"
-                    checked={chosen.some(
-                      (x) => x.kind === kind && x.id === r.id,
-                    )}
-                    onChange={() => toggle({ kind, id: r.id })}
-                  />
-                  <span style={{ flex: 1 }}>
-                    {r.draft?.title ?? r.title ?? "Untitled"}
-                  </span>
-                  <small>{r.status}</small>
+                  <HomepageImage src={homepageImage(kind, r)} kind={kind} />
+                  <div>
+                    <input
+                      type="checkbox"
+                      disabled={busy || !can("homepage.write")}
+                      checked={chosen.some(
+                        (x) => x.kind === kind && x.id === r.id,
+                      )}
+                      onChange={() => toggle({ kind, id: r.id })}
+                    />
+                    <strong>{r.draft?.title ?? r.title ?? "Untitled"}</strong>
+                  </div>
+                  <ContentStatus status={r.status} />
                 </label>
               </li>
             ))}
           </ul>
-          {!options.length && !pickerBusy && (
+          {!options.length && !pickerBusy && !pickerError && (
             <EmptyState
               title="No content found"
               body="Choose another type or search term."
