@@ -26,3 +26,7 @@ The GET /admin/staff/permission-catalog static route was shadowed by StaffContro
 - Cursor UI and query contract retained; local directories have four records each, so browser Load more cannot be exercised on that fixture. API cursor/filter regression passes.
 
 Hosted verification is recorded in people-preview-release.json after rollout. Screenshots in evidence/people-visual/.
+
+## Hosted release verification
+
+Admin 4ecddf9 / dpl_8AxyC5oWMDUEUFveXE6Z8vA2xdRa READY, API 2508396 / dep-dbhoetegekts73bqkmg0 live. Stable admin preview is updated. Normal preview administrator session used. Customer status filter/empty/reset, Gold household five stored/five allowed profiles, protected main category and unchanged Save disabled, immutable customer email, and staff catalog search all passed. Profile and open staff permission editor at all four widths have no page overflow; browser warnings/errors empty. API and proxy health 200; unauthenticated customer directory and staff catalog 401. No hosted data writes. See people-preview-release.json.

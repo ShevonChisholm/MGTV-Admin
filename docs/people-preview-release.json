@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-29",
+  "environment": "existing disposable preview",
+  "status": "live and hosted verified",
+  "admin": {
+    "commit": "4ecddf9e5f67a8caae088e2ce4c839bb6f182198",
+    "deployment": "dpl_8AxyC5oWMDUEUFveXE6Z8vA2xdRa",
+    "state": "READY",
+    "url": "https://mgtv-admin.vercel.app",
+    "rollbackDeployment": "dpl_AEX5nakwoXvmuZ9zsCj857t4mVkr"
+  },
+  "api": {
+    "commit": "2508396294d7eb58253c0ce2d80d96439b2188a5",
+    "deployment": "dep-dbhoetegekts73bqkmg0",
+    "state": "live",
+    "url": "https://mgtv-api-preview.onrender.com",
+    "scope": "static staff permission catalog registered before dynamic staff ID; same staff.read guard/service"
+  },
+  "checks": {
+    "adminTypeScript": "pass",
+    "adminBuild": "pass; existing chunk-size warning",
+    "apiBuild": "pass",
+    "apiAccessUsersProfiles": "28 passed, 0 failed",
+    "localWidths": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "hostedProfileAndStaffEditorWidths": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "localHorizontalPageOverflow": false,
+    "hostedHorizontalPageOverflow": false,
+    "hostedBrowserWarningsErrors": [],
+    "health": {
+      "api": 200,
+      "adminProxy": 200,
+      "guestCustomers": 401,
+      "guestStaffCatalog": 401
+    }
+  },
+  "hostedReview": {
+    "customerCount": 4,
+    "staffCount": 4,
+    "customerStatusFilterEmptyAndReset": "pass",
+    "goldProfileCount": 5,
+    "goldProfileAllowance": 5,
+    "mainProfileTypeDisabled": true,
+    "unchangedProfileSaveDisabled": true,
+    "customerEmailImmutable": true,
+    "staffCatalogSearch": "podcasts returns four registered operations; no Invalid record ID",
+    "unchangedPermissionSaveDisabled": true,
+    "hostedMutations": []
+  },
+  "limits": [
+    "Browser directories have four records; cursor Load more retained and covered by API regression, not exercised in browser",
+    "No hosted account/profile/access/invitation/status/recovery writes",
+    "No customer frontend, schema, provider or hosting-plan change"
+  ],
+  "pending": [
+    "DRM",
+    "production email",
+    "Roles & Permissions visual pass",
+    "Staff Onboarding visual pass"
+  ],
+  "evidence": [
+    "evidence/people-visual/customers-grid-hosted.png",
+    "evidence/people-visual/customer-profiles-hosted.png",
+    "evidence/people-visual/staff-detail-hosted.png"
+  ]
+}
