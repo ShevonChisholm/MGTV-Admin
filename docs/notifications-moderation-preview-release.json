@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-29",
+  "environment": "existing disposable preview",
+  "url": "https://mgtv-admin.vercel.app",
+  "areas": [
+    "Notifications",
+    "Moderation"
+  ],
+  "commit": "925b8091314c90180d1bf12b27cc6f58e873471d",
+  "includedNotificationsCommit": "7ff9975e947d0f37f0e5f64c4a09e8f2342fa0bb",
+  "deployment": "dpl_AEX5nakwoXvmuZ9zsCj857t4mVkr",
+  "priorDeployment": "dpl_GHS7DgvTRAEB6JaFj9Hk4hP8n9Pm",
+  "state": "READY",
+  "apiChanged": false,
+  "customerChanged": false,
+  "migrations": [],
+  "permissionsGranted": [],
+  "providerUploads": 0,
+  "hostedDataMutations": 0,
+  "supportingFix": "Events uses cursor, not after, in Moderation and the existing Discovery content picker.",
+  "hostedChecks": [
+    "Moderation queue: 7 open / 3 resolved; normal staff session",
+    "Event evidence artwork ready; captured/current context separated",
+    "Report details and related reports",
+    "Removal confirmation disabled without reason; closed without action",
+    "Moderation evidence contained at 320/390/768/1440px",
+    "Staff report picker: 10 Podcasts; Events 24 to 32; cancelled without creation",
+    "Notifications templates: three records, Shows filter one, clear restores three",
+    "Saved template overview and local-email illustration",
+    "Archive confirmation disabled without reason; cancelled",
+    "All three composer steps, no-channel Save disabled, unsaved navigation guard",
+    "Temporary hosted composer text discarded; no draft created",
+    "Template grid and composer review contained at 320/390/768/1440px",
+    "Existing sent lifecycle record shows 10 delivered in-app / 0 read; correct Back to history",
+    "Browser error/warning logs empty",
+    "API/admin health 200; cookie-free Moderation/Notifications endpoints 401"
+  ],
+  "pending": [
+    "DRM",
+    "Production email"
+  ],
+  "stopBefore": "Customers & Profiles"
+}

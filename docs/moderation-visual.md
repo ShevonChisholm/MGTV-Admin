@@ -1,6 +1,6 @@
 # Moderation admin visual review
 
-29 October 2026. Local verification completed; planned combined admin preview release includes the prior Notifications pass.
+29 October 2026. Local and hosted verification completed. Combined admin preview release 925b809 / dpl_AEX5nakwoXvmuZ9zsCj857t4mVkr includes the prior Notifications pass.
 
 ## Changes
 
@@ -28,4 +28,4 @@ Screenshots: docs/evidence/moderation-visual. Notifications verification remains
 
 ## Release boundary
 
-Deploy Notifications and Moderation together only to the existing disposable admin preview, then verify through normal staff authentication without hosted data mutations. DRM and production email remain pending. Stop before Customers & Profiles.
+Notifications and Moderation are deployed to the existing disposable admin preview and verified through normal staff authentication without hosted data mutations. See notifications-moderation-preview-release.json. DRM and production email remain pending. Stop before Customers & Profiles.

@@ -1,6 +1,6 @@
 # Notifications admin visual review
 
-Completed locally on 29 October 2026. This Notifications pass is not deployed. Homepage & Featured Content and Categories & Discovery remain live as 6910a5f / dpl_GHS7DgvTRAEB6JaFj9Hk4hP8n9Pm.
+Completed and deployed to the disposable preview on 29 October 2026, together with Moderation as 925b809 / dpl_AEX5nakwoXvmuZ9zsCj857t4mVkr. This includes the earlier Homepage & Discovery release.
 
 ## Changes
 
@@ -28,4 +28,7 @@ Screenshots in docs/evidence/notifications-visual. The composer screenshot conta
 
 ## Next
 
-Preview deployment and hosted acceptance remain for Notifications. Stop before Moderation. DRM, production email/domain/inbox and browser-push setup remain pending. Broader notification-category/destination expansion is separate from this visual pass.
+Hosted acceptance passed; see notifications-moderation-preview-release.json. Stop before Customers & Profiles. DRM, production email/domain/inbox and browser-push setup remain pending. Broader notification-category/destination expansion is separate from this visual pass.
+
+
+Hosted checks used normal staff authentication and cancelled dialogs. Temporary composer text was discarded; no hosted draft or audience delivery was created. Template/category filtering, channel-less save gate, three steps, unsaved navigation and real history outcomes passed. Hosted template grid and composer review contained at 320–1440px; console errors/warnings empty.

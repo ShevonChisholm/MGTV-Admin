@@ -26,3 +26,6 @@ DRM and production email remain pending. Stop before Notifications or another ad
 
 
 Preview rollout complete: commit 6910a5f / dpl_GHS7DgvTRAEB6JaFj9Hk4hP8n9Pm is READY at https://mgtv-admin.vercel.app. See homepage-discovery-preview-release.json for exact hosted checks and rollback reference. No hosted records were saved or published during acceptance. DRM and production email remain pending; stop before Notifications.
+
+
+Supporting correction in the Notifications/Moderation release: Events paging now uses the actual cursor parameter rather than after. Local Events picker verified 24 → 32 items with no errors; no associations saved. See notifications-moderation-preview-release.json.
