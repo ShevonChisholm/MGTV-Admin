@@ -26,9 +26,11 @@ export function articleStats(body: Pick<Body, "blocks">) {
 export default function NewsArtwork({
   record,
   draft,
+  resource = "news",
 }: {
   record: any;
   draft?: Body;
+  resource?: "news" | "lifestyle";
 }) {
   const [failed, setFailed] = useState(false);
   const changed =
@@ -36,7 +38,7 @@ export default function NewsArtwork({
     draft.coverMediaVersionId !== (record?.draft.coverMediaVersionId ?? null);
   const src =
     record?.draft.coverMediaVersionId && !changed
-      ? `/api/v1/admin/news/${record.id}/cover?v=${record.version}`
+      ? `/api/v1/admin/${resource}/${record.id}/cover?v=${record.version}`
       : null;
   useEffect(() => setFailed(false), [src]);
   return (

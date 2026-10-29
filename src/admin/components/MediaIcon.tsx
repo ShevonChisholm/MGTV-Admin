@@ -1,5 +1,12 @@
 const paths: Record<string, string> = {
-  podcast:"M9 5a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0V5ZM5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8",
+  food: "M4 3v7m3-7v7m3-7v7M4 7h6m-3 3v11m11-18c-3 3-3 8 0 8h2V3h-2Zm2 8v10",
+  travel: "m3 12 18-8-8 18-2-9-8-1Zm8 1 10-9",
+  fashion: "m8 3 4 2 4-2 6 6-4 3-2-2v11H8V10l-2 2-4-3 6-6Z",
+  culture: "M3 21h18M5 18V9m5 9V9m4 9V9m5 9V9M2 7l10-5 10 5H2Z",
+  wellness: "M19 3C7 3 3 8 6 15s15 2 13-12ZM5 21l9-11",
+
+  podcast:
+    "M9 5a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0V5ZM5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8",
   brand: "M12 3 3 8l9 5 9-5-9-5ZM3 12l9 5 9-5M3 16l9 5 9-5",
   campaign: "M3 9h5l12-5v16L8 15H3V9Zm5 6 2 6H6l-2-6",
   calendar: "M4 5h16v16H4zM8 3v4m8-4v4M4 10h16",
