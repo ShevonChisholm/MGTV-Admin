@@ -1,0 +1,107 @@
+{
+  "date": "2026-10-29",
+  "environment": "existing disposable preview",
+  "status": "READY and hosted verified",
+  "admin": {
+    "commit": "111c2f7024f75d09aae432ab7457a9543f5312c8",
+    "deployment": "dpl_AEqyDqTXq81Pp1zDZqjqEnt13QDx",
+    "url": "https://mgtv-admin.vercel.app",
+    "rollbackDeployment": "dpl_8AxyC5oWMDUEUFveXE6Z8vA2xdRa"
+  },
+  "scope": [
+    "Roles & Permissions visual tables/details/wizards",
+    "Staff Onboarding visual queue and milestone details"
+  ],
+  "checks": {
+    "typescript": "pass",
+    "build": "pass; existing bundle-size warning",
+    "staffOnboardingIntegration": "13 passed, 0 failed; isolated local test database",
+    "localWidths": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "localTableSections": [
+      "roles",
+      "resources",
+      "access activity",
+      "onboarding queue"
+    ],
+    "localDetailSections": [
+      "role review wizard",
+      "onboarding milestones"
+    ],
+    "localPageOverflow": false,
+    "hostedWizardAndOnboardingWidths": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "hostedPageOrDialogOverflow": false,
+    "hostedBrowserWarningsErrors": [],
+    "health": 200,
+    "guestResources": 401,
+    "guestOnboarding": 401
+  },
+  "localReview": {
+    "resourcesVisited": 32,
+    "resourcePageSizes": [
+      10,
+      10,
+      10,
+      2
+    ],
+    "newRoleEmptyContinueDisabled": true,
+    "directOnlyContentPublishExcludedFromRoleOptions": true,
+    "resourceKeyImmutable": true,
+    "reasonlessSaveDisabled": true,
+    "discardConfirmationCancelAndDiscard": "pass",
+    "unsavedOnboardingReasonBlocksSectionSwitchAndRefresh": true,
+    "unsavedReasonCleared": true
+  },
+  "hostedReview": {
+    "roles": 3,
+    "registeredResources": 32,
+    "roleDetails": "Movie editor",
+    "wizardSearchResult": [
+      "movies.read",
+      "movies.write"
+    ],
+    "reasonlessRoleSaveDisabled": true,
+    "resourceSecondPage": "11\u201320 of 32",
+    "openJourneyCount": 1,
+    "reviewedStaff": "Preview Editor",
+    "recordedChecks": 0,
+    "reasonlessInviteCancelReviewDisabled": true,
+    "accessAndActivitySections": "pass",
+    "writes": []
+  },
+  "unchanged": [
+    "API/source/schema",
+    "customer frontend",
+    "explicit access grants and delegation rules",
+    "staff MFA",
+    "onboarding state and access fingerprint checks",
+    "email/provider settings"
+  ],
+  "limits": [
+    "No access, role, registration, enrollment, invitation, cancellation or review writes during browser checks",
+    "Onboarding fixture has fewer than 24 rows; server Load more not exercised in browser; existing cursor integration test passes"
+  ],
+  "pending": [
+    "DRM",
+    "production email",
+    "Subscriptions visual pass",
+    "Analytics & Dashboard visual pass",
+    "Contact & Newsletter visual pass",
+    "Careers visual pass",
+    "Platform Settings visual pass"
+  ],
+  "evidence": [
+    "evidence/access-onboarding-visual/access-table-hosted.png",
+    "evidence/access-onboarding-visual/onboarding-queue-hosted.png",
+    "evidence/access-onboarding-visual/onboarding-detail-hosted.png"
+  ]
+}

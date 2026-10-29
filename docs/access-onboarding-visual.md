@@ -23,3 +23,7 @@ Staff onboarding uses a filterable queue table, separate journey/account status,
 Hosted rollout results and exact commit/deployment are recorded separately in access-onboarding-preview-release.json. Evidence is in evidence/access-onboarding-visual/.
 
 Stop before Subscriptions or another admin area. DRM and production email pending.
+
+## Hosted verification
+
+Admin 111c2f7 / dpl_AEqyDqTXq81Pp1zDZqjqEnt13QDx READY at the stable disposable preview. Normal preview administrator session used. Three roles and 32 resources returned; Movie editor detail and all wizard stages read without save, movies search returns read/write only, reasonless Save disabled. Resources second-page navigation shows 11–20 of 32. Open onboarding queue has one pending Preview Editor journey, zero recorded checks; invitation/cancellation/review buttons disabled without a reason. Access/activity panes read. Wizard and journey at 320/390/768/1440px: no page/dialog overflow. Browser warnings/errors empty. Proxy health 200; guest resources/onboarding 401. No hosted writes, grants or messages. See access-onboarding-preview-release.json.
