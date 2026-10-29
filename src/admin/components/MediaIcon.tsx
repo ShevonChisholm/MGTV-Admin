@@ -1,4 +1,6 @@
 const paths: Record<string, string> = {
+  chart: "M3 3v18h18M7 15l5-6 4 3 5-8",
+  devices: "M2 4h14v11H2zM6 19h6m-3-4v4M18 9h5v12h-5z",
   bell: "M6 8a6 6 0 0 1 12 0v6l3 3H3l3-3V8Zm3 12a3 3 0 0 0 6 0",
   mail: "M3 5h18v14H3V5Zm0 1 9 7 9-7",
   send: "m3 3 19 9-19 9 4-9-4-9Zm4 9h15",

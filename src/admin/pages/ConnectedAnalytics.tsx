@@ -1,104 +1,72 @@
-import LoadingState from "../components/LoadingState";
-import StaffAuth from "./StaffAuth";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { api, ApiError } from "../api/client";
 import { Link } from "../router";
+import LoadingState, { ErrorState } from "../components/LoadingState";
+import MediaIcon from "../components/MediaIcon";
+import {
+  DailyTrend,
+  DeviceBreakdown,
+  Retention,
+  AnalyticsPanel,
+} from "../components/AnalyticsCharts";
+import {
+  AttentionQueue,
+  CatalogBreakdown,
+  TopContent,
+  RecentActivity,
+} from "../components/AnalyticsTables";
+import {
+  count,
+  decimal,
+  dayLabel,
+  lastDay,
+  momentLabel,
+  durationLabel,
+  titleCase,
+  type AnalyticsReport,
+} from "../components/analytics-model";
 import "./analytics.css";
-const colors = [
-  "#C9A84C",
-  "#3b82f6",
-  "#a855f7",
-  "#22c55e",
-  "#f59e0b",
-  "#06b6d4",
-  "#ec4899",
-];
-const number = (n: number) => new Intl.NumberFormat().format(Math.round(n));
-const percent = (n: number | null) => (n === null ? "—" : `${n}%`);
-const date = (s: string) =>
-  new Date(s + "T12:00:00Z").toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-function Panel({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="analytics-panel">
-      <h2>{title}</h2>
-      {children}
-    </section>
-  );
-}
-function Line({
-  values,
-  color,
-  label,
-}: {
-  values: number[];
-  color: string;
-  label: string;
-}) {
-  const max = Math.max(1, ...values),
-    points = values
-      .map(
-        (v, i) =>
-          `${8 + (i / Math.max(1, values.length - 1)) * 584},${128 - (v / max) * 112}`,
-      )
-      .join(" ");
-  return (
-    <svg
-      viewBox="0 0 600 140"
-      width="100%"
-      height="140"
-      role="img"
-      aria-label={label}
-    >
-      <polygon points={`8,132 ${points} 592,132`} fill={color} opacity="0.14" />
-      <polyline
-        points={points}
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 export default function ConnectedAnalytics({
   dashboard = false,
 }: {
   dashboard?: boolean;
 }) {
-  const [unauthenticated, setUnauthenticated] = useState(false);
   const [days, setDays] = useState("30"),
     [source, setSource] = useState("observed"),
-    [report, setReport] = useState<any>(null),
-    [error, setError] = useState(""),
+    [revision, setRevision] = useState(0);
+  const [report, setReport] = useState<AnalyticsReport | null>(null),
+    [permissions, setPermissions] = useState<string[]>([]),
     [loading, setLoading] = useState(true),
-    [revision, setRevision] = useState(0),
+    [error, setError] = useState(""),
+    [denied, setDenied] = useState(false),
     [developmentAvailable, setDevelopmentAvailable] = useState(false);
   useEffect(() => {
     let live = true;
     setLoading(true);
     setReport(null);
     setError("");
-    setUnauthenticated(false);
-    void api("/admin/analytics/report?days=" + days + "&source=" + source)
-      .then((r) => {
+    setDenied(false);
+    void Promise.all([
+      api("/admin/analytics/report?days=" + days + "&source=" + source),
+      api("/admin/session"),
+    ])
+      .then(([r, staff]) => {
         if (live) {
           setReport(r);
+          setPermissions(staff.permissions ?? []);
           setDevelopmentAvailable(r.developmentAvailable);
         }
       })
       .catch((e) => {
-        if (live && e instanceof ApiError && e.status === 401)
-          setUnauthenticated(true);
-        if (live)
-          setError(
-            e instanceof ApiError && e.status === 403
-              ? "You need the explicit analytics.read permission to view this page."
-              : (e.message ?? "Analytics could not be loaded."),
-          );
+        if (!live) return;
+        setDenied(e instanceof ApiError && e.status === 403);
+        setError(
+          e instanceof ApiError && e.status === 403
+            ? "This workspace requires the explicit analytics.read permission."
+            : e instanceof ApiError && e.status === 401
+              ? "Your staff session has ended. Sign in again to continue."
+              : "The report could not be loaded. Please try again.",
+        );
       })
       .finally(() => {
         if (live) setLoading(false);
@@ -107,417 +75,301 @@ export default function ConnectedAnalytics({
       live = false;
     };
   }, [days, source, revision]);
-  if (unauthenticated && !loading)
-    return (
-      <StaffAuth
-        onAuthenticated={async () => {
-          setRevision((x) => x + 1);
-        }}
-      />
-    );
-  const s = report?.summary,
-    inventory = report?.inventory ?? [],
-    total = inventory.reduce((n: number, x: any) => n + x.count, 0),
-    devices = report?.devices ?? [],
-    deviceTotal = devices.reduce((n: number, x: any) => n + x.sessions, 0);
-  const kpis = report
-    ? dashboard
-      ? [
-          ["Qualified Views", number(s.views), "Selected period"],
-          ["Active Viewers", number(s.active), "Distinct customer accounts"],
-          ["Published Content", number(total), "Current catalog inventory"],
-          [
-            "Open Reports",
-            number(report.operations.openReports),
-            "Current moderation queue",
-          ],
-        ]
-      : [
-          [
-            "Avg. Daily Active Viewers",
-            new Intl.NumberFormat(undefined, {
-              maximumFractionDigits: 2,
-            }).format(s.averageDailyActive),
-            "Full-content playback accounts",
-          ],
-          [
-            "Avg. Playback Time",
-            `${(s.averageWatchSeconds / 60).toFixed(1)} min`,
-            "Per session with credited activity",
-          ],
-          [
-            "Content Completion Rate",
-            percent(s.completionPercent),
-            "90% of runtime credited",
-          ],
-          ["Subscriber Growth", "—", "Provider reporting deferred"],
-        ]
-    : [];
-  let deviceOffset = 0;
+  const can = (permission: string) => permissions.includes(permission),
+    s = report?.summary,
+    total = report?.inventory.reduce((n, r) => n + r.count, 0) ?? 0;
+  const kpis =
+    report && s
+      ? dashboard
+        ? [
+            {
+              label: "Qualified views",
+              value: count(s.views),
+              note: "Selected audience period",
+              icon: "video",
+            },
+            {
+              label: "Active viewers",
+              value: count(s.active),
+              note: "Distinct customer accounts",
+              icon: "users",
+            },
+            {
+              label: "Discoverable catalog",
+              value: count(total),
+              note: "Current Discovery index",
+              icon: "grid",
+            },
+            {
+              label: "Open reports",
+              value: count(report.operations.openReports),
+              note: "Current moderation queue",
+              icon: "review",
+            },
+          ]
+        : [
+            {
+              label: "Qualified views",
+              value: count(s.views),
+              note: "Full-content sessions meeting the threshold",
+              icon: "video",
+            },
+            {
+              label: "Active viewers",
+              value: count(s.active),
+              note: "Distinct customer accounts",
+              icon: "users",
+            },
+            {
+              label: "Credited watch time",
+              value: durationLabel(s.seconds),
+              note: "Bounded full-content playback time",
+              icon: "clock",
+            },
+            {
+              label: "Session completion",
+              value:
+                s.completionPercent === null
+                  ? "Unavailable"
+                  : decimal(s.completionPercent) + "%",
+              note:
+                s.completionPercent === null
+                  ? "No qualifying sessions to compare"
+                  : "Qualifying sessions reaching 90%",
+              icon: "check",
+            },
+          ]
+      : [];
   return (
-    <div className="analytics-page" aria-busy={loading}>
-      <div className="analytics-toolbar">
-        <p>
-          {report
-            ? `${date(report.range.start)} – ${date(new Date(new Date(report.range.endExclusive + "T12:00:00Z").getTime() - 86400000).toISOString().slice(0, 10))} · Jamaica time`
-            : "Audience & operations"}
-        </p>
+    <div className="analytics-page av-workspace">
+      <header className="an-hero">
         <div>
+          <span className="an-eyebrow">
+            <MediaIcon name={dashboard ? "grid" : "chart"} size={16} />
+            {dashboard ? "MGTV WORKSPACE" : "AUDIENCE INTELLIGENCE"}
+          </span>
+          <h2>
+            {dashboard
+              ? "Your platform, at a glance."
+              : "Every play, in perspective."}
+          </h2>
+          <p>
+            {dashboard
+              ? "Follow the audience, see what needs attention and pick up where your team left off."
+              : "Explore qualified playback and returning viewers with a clear view of what each number means."}
+          </p>
+        </div>
+        <Link
+          to={dashboard ? "/admin/analytics" : "/admin/dashboard"}
+          className="btn"
+        >
+          {dashboard ? "Open audience report" : "Back to dashboard"}
+          <MediaIcon name="arrow" size={17} />
+        </Link>
+      </header>
+      <section
+        className="an-report-controls"
+        aria-label="Audience report controls"
+      >
+        <div className="an-period-fields">
           <label>
-            Period{" "}
-            <select value={days} onChange={(e) => setDays(e.target.value)}>
+            Audience period
+            <select
+              className="input"
+              value={days}
+              disabled={loading}
+              onChange={(e) => setDays(e.target.value)}
+            >
               <option value="14">Last 14 days</option>
               <option value="30">Last 30 days</option>
               <option value="90">Last 90 days</option>
             </select>
           </label>
           <label>
-            Audience data{" "}
-            <select value={source} onChange={(e) => setSource(e.target.value)}>
+            Audience source
+            <select
+              className="input"
+              value={source}
+              disabled={loading}
+              onChange={(e) => setSource(e.target.value)}
+            >
               <option value="observed">Observed activity</option>
               {developmentAvailable && (
-                <option value="development">Development sample</option>
+                <option value="development">Synthetic development data</option>
               )}
             </select>
           </label>
-          <button
-            className="btn btn-sm"
-            onClick={() => setRevision((x) => x + 1)}
-            disabled={loading}
-          >
-            Refresh
-          </button>
         </div>
-      </div>
-      {loading && (
-        <LoadingState label={<>Loading analytics…</>} variant="dashboard" />
-      )}
-      {error && (
-        <div role="alert" className="analytics-panel">
-          {error}
-          <button
-            className="btn btn-sm"
-            onClick={() => setRevision((x) => x + 1)}
-          >
-            Retry
-          </button>
-        </div>
-      )}
-      {report && (
-        <>
-          <p className="analytics-notice">
-            {source === "development"
-              ? "Development sample: synthetic audience figures only. Operational counts and staff activity below remain real database records."
-              : "Observed full-content playback only. Previews, hero clips, advertisements and sign-ins are excluded."}{" "}
-            Today is partial.
-          </p>
-          {dashboard && (
-            <nav
-              className="analytics-attention"
-              aria-label="Waiting for attention"
-            >
-              <Link to="/admin/moderation" className="btn btn-sm">
-                {report.operations.openReports} open reports
-              </Link>
-              <Link to="/admin/advertising/campaigns" className="btn btn-sm">
-                {report.operations.campaignsInReview} campaigns awaiting review
-              </Link>
-              <Link to="/admin/events" className="btn btn-sm">
-                {report.operations.scheduledEvents} published scheduled events
-              </Link>
-            </nav>
-          )}
-          <div className="analytics-kpis">
-            {kpis.map(([label, value, note]) => (
-              <section key={label} className="analytics-panel">
-                <h2>{label}</h2>
-                <strong>{value}</strong>
-                <p>{note}</p>
-              </section>
-            ))}
+        <button
+          className="btn"
+          type="button"
+          disabled={loading}
+          onClick={() => setRevision((v) => v + 1)}
+        >
+          <MediaIcon name="refresh" size={17} />
+          {loading ? "Refreshing..." : "Refresh report"}
+        </button>
+      </section>
+      {loading ? (
+        <div className="an-loading" aria-busy="true">
+          <LoadingState
+            variant="dashboard"
+            label="Loading audience and current operations"
+          />
+          <div className="an-main-grid" aria-hidden="true">
+            <div className="an-panel an-chart-placeholder">
+              <span className="ui-skeleton ui-skeleton-line" />
+              <div className="ui-skeleton" />
+            </div>
+            <div className="an-panel an-chart-placeholder">
+              <span className="ui-skeleton ui-skeleton-line" />
+              <div className="ui-skeleton" />
+            </div>
           </div>
-          {!s.sessions && (
-            <p role="status" className="analytics-notice">
-              No credited playback in this period. Start full-content playback
-              to record activity
-              {developmentAvailable
-                ? ", or choose Development sample to review the charts"
-                : ""}
-              .
-            </p>
-          )}
-          <div className={dashboard ? "analytics-columns" : "analytics-full"}>
-            <Panel
-              title={
-                dashboard
-                  ? "Daily Qualified Views"
-                  : `Daily Active Viewers — Last ${days} days`
-              }
-            >
-              <p>
-                {dashboard
-                  ? `${number(s.views)} qualified sessions`
-                  : `Peak: ${number(Math.max(...report.daily.map((x: any) => x.active)))} · Today: ${number(report.daily.at(-1).active)}`}
-              </p>
-              <Line
-                values={report.daily.map((x: any) =>
-                  dashboard ? x.views : x.active,
-                )}
-                color={dashboard ? colors[0] : colors[1]}
-                label={
-                  dashboard
-                    ? "Daily qualified playback sessions"
-                    : "Distinct playback accounts per day"
-                }
-              />
-              <div className="analytics-axis">
-                <span>{date(report.range.start)}</span>
-                <span>{date(report.daily.at(-1).day)}</span>
+        </div>
+      ) : error ? (
+        <ErrorState
+          title={denied ? "Analytics access required" : "Report unavailable"}
+          message={error}
+          onRetry={denied ? undefined : () => setRevision((v) => v + 1)}
+        />
+      ) : (
+        report &&
+        s && (
+          <>
+            <div className="an-report-meta">
+              <div>
+                <span
+                  className={
+                    "an-source " +
+                    (report.source === "development" ? "an-source-demo" : "")
+                  }
+                >
+                  <span className="an-dot" />
+                  {report.source === "development"
+                    ? "Synthetic audience data"
+                    : "Observed audience activity"}
+                </span>
+                <span>
+                  {dayLabel(report.range.start)} -{" "}
+                  {dayLabel(lastDay(report.range.endExclusive))}{" "}
+                  <span className="an-muted">
+                    / Jamaica time / today is partial
+                  </span>
+                </span>
               </div>
-              <details>
-                <summary>View daily data</summary>
-                <div className="analytics-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Viewers</th>
-                        <th>Views</th>
-                        <th>Minutes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {report.daily.map((x: any) => (
-                        <tr key={x.day}>
-                          <td>{x.day}</td>
-                          <td>{x.active}</td>
-                          <td>{x.views}</td>
-                          <td>{(x.seconds / 60).toFixed(1)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </details>
-            </Panel>
-            {dashboard && (
-              <Panel title="Published Content by Type">
-                {inventory.length ? (
-                  inventory.map((x: any, i: number) => (
-                    <div className="analytics-bar" key={x.kind}>
-                      <div>
-                        <span>{x.kind}</span>
-                        <span>{number(x.count)}</span>
-                      </div>
-                      <meter
-                        min="0"
-                        max={total}
-                        value={x.count}
-                        aria-label={`${x.kind}: ${x.count}`}
-                        style={{ accentColor: colors[i % colors.length] }}
-                      />
-                    </div>
-                  ))
-                ) : (
-                  <p>No published catalog records.</p>
-                )}
-                <p>
-                  Inventory distribution; not viewing interest. Shop products
-                  are managed separately.
-                </p>
-              </Panel>
+              <small>Updated {momentLabel(report.generatedAt)}</small>
+            </div>
+            {report.source === "development" && (
+              <p className="an-notice">
+                <MediaIcon name="review" />
+                Audience charts use fictional development activity. Operational
+                counts and staff activity remain current database records.
+              </p>
             )}
-          </div>
-          {!dashboard && (
-            <>
-              <div className="analytics-columns">
-                <Panel title="Top Content by Qualified Views">
-                  {report.top.length ? (
-                    report.top.map((x: any, i: number) => (
-                      <div className="analytics-bar" key={x.kind + x.id}>
-                        <div>
-                          <span>
-                            {x.title} <small>· {x.kind}</small>
-                          </span>
-                          <span>{number(x.views)}</span>
-                        </div>
-                        <meter
-                          min="0"
-                          max={Math.max(
-                            1,
-                            ...report.top.map((t: any) => t.views),
-                          )}
-                          value={x.views}
-                          aria-label={`${x.title}: ${x.views} views`}
-                          style={{ accentColor: colors[i % colors.length] }}
-                        />
-                      </div>
-                    ))
-                  ) : (
-                    <p>No qualified views yet.</p>
-                  )}
-                </Panel>
-                <Panel title="Browser Form Factor">
-                  <div className="analytics-donut">
-                    <svg
-                      viewBox="0 0 160 160"
-                      width="160"
-                      height="160"
-                      role="img"
-                      aria-label={
-                        deviceTotal
-                          ? "Playback sessions by reported browser form factor"
-                          : "No device observations"
-                      }
-                    >
-                      <circle
-                        cx="80"
-                        cy="80"
-                        r="60"
-                        fill="none"
-                        stroke="var(--border)"
-                        strokeWidth="18"
-                      />
-                      {devices.map((d: any, i: number) => {
-                        const len = (d.sessions / deviceTotal) * 377,
-                          offset = deviceOffset;
-                        deviceOffset += len;
-                        return (
-                          <circle
-                            key={d.device}
-                            cx="80"
-                            cy="80"
-                            r="60"
-                            fill="none"
-                            stroke={colors[i % colors.length]}
-                            strokeWidth="18"
-                            strokeDasharray={`${len} ${377 - len}`}
-                            strokeDashoffset={-offset}
-                            transform="rotate(-90 80 80)"
-                          />
-                        );
-                      })}
-                      <text
-                        x="80"
-                        y="80"
-                        textAnchor="middle"
-                        fill="var(--text-primary)"
-                        fontSize="18"
-                      >
-                        {number(deviceTotal)}
-                      </text>
-                      <text
-                        x="80"
-                        y="97"
-                        textAnchor="middle"
-                        fill="var(--text-muted)"
-                        fontSize="10"
-                      >
-                        sessions
-                      </text>
-                    </svg>
-                  </div>
-                  {devices.map((d: any, i: number) => (
-                    <div className="analytics-device" key={d.device}>
-                      <span>
-                        <i style={{ background: colors[i % colors.length] }} />
-                        {d.device}
-                      </span>
-                      <span>
-                        {((100 * d.sessions) / deviceTotal).toFixed(1)}%
-                      </span>
-                    </div>
-                  ))}
-                  {!devices.length && <p>No device observations.</p>}
-                </Panel>
-              </div>
-              <Panel title="Monthly Returning Viewer Rate">
-                <p>
-                  Six completed months · audience active in the preceding month
-                  who returned.
-                </p>
-                <div className="analytics-retention">
-                  {report.retention.map((x: any) => (
-                    <div key={x.month}>
-                      <span>{percent(x.percent)}</span>
-                      <div
-                        style={{
-                          height:
-                            x.percent === null
-                              ? 2
-                              : Math.max(2, x.percent * 0.65),
-                          background:
-                            x.percent === null ? "var(--border)" : "#3b82f6",
-                        }}
-                      />
-                      <span>
-                        {new Date(x.month + "T12:00:00Z").toLocaleDateString(
-                          undefined,
-                          { month: "short", year: "2-digit" },
-                        )}
-                      </span>
-                      <small>
-                        {x.retained}/{x.previous}
-                      </small>
-                    </div>
-                  ))}
+            {dashboard && (
+              <>
+                <div className="an-section-label">
+                  <h3>Keep things moving</h3>
+                  <span>
+                    Current queues, independent of the audience period
+                  </span>
                 </div>
-                <p>— means no preceding audience; the rate is unavailable.</p>
-              </Panel>
-            </>
-          )}
-          {dashboard && (
-            <Panel title="Recent Staff Activity">
-              <p>Latest audited operations · current database</p>
-              {report.activity.length ? (
-                report.activity.map((x: any) => (
-                  <div className="analytics-activity" key={x.id}>
-                    <span className="analytics-avatar" aria-hidden="true">
-                      {x.actor
-                        .split(" ")
-                        .map((v: string) => v[0])
-                        .slice(0, 2)
-                        .join("")}
-                    </span>
-                    <div>
-                      <b>{x.actor}</b>
-                      <span>
-                        {x.action.replaceAll(".", " · ").replaceAll("_", " ")}
-                      </span>
-                    </div>
-                    <time dateTime={x.createdAt}>
-                      {new Date(x.createdAt).toLocaleString(undefined, {
-                        timeZone: "America/Jamaica",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </time>
-                  </div>
-                ))
+                <AttentionQueue operations={report.operations} can={can} />
+              </>
+            )}
+            <section className="an-kpis" aria-label="Report summary">
+              {kpis.map((k) => (
+                <article key={k.label}>
+                  <span className="an-icon">
+                    <MediaIcon name={k.icon} />
+                  </span>
+                  <span className="an-kpi-label">{k.label}</span>
+                  <strong>{k.value}</strong>
+                  <small>{k.note}</small>
+                </article>
+              ))}
+            </section>
+            <div className="an-main-grid">
+              <DailyTrend
+                key={source + days}
+                daily={report.daily}
+                initialMetric={dashboard ? "views" : "active"}
+              />
+              {dashboard ? (
+                <CatalogBreakdown inventory={report.inventory} can={can} />
               ) : (
-                <p>No audited staff activity.</p>
+                <DeviceBreakdown devices={report.devices} />
               )}
-            </Panel>
-          )}
-          <details className="analytics-panel">
-            <summary>Metric definitions & coverage</summary>
-            {Object.entries(report.definitions).map(([key, value]) => (
-              <p key={key}>
-                <b className="analytics-capitalize">{key}: </b>
-                {String(value)}
+            </div>
+            {!dashboard && (
+              <>
+                <section className="an-insights" aria-label="Audience context">
+                  <div>
+                    <MediaIcon name="users" />
+                    <span>
+                      Average daily active viewers
+                      <strong>{decimal(s.averageDailyActive, 2)}</strong>
+                    </span>
+                  </div>
+                  <div>
+                    <MediaIcon name="clock" />
+                    <span>
+                      Average credited session
+                      <strong>{durationLabel(s.averageWatchSeconds)}</strong>
+                    </span>
+                  </div>
+                  <div>
+                    <MediaIcon name="video" />
+                    <span>
+                      Credited sessions<strong>{count(s.sessions)}</strong>
+                    </span>
+                  </div>
+                </section>
+                <TopContent key={source + days} rows={report.top} can={can} />
+                <Retention rows={report.retention} />
+              </>
+            )}
+            {dashboard && <RecentActivity rows={report.activity} can={can} />}
+            <AnalyticsPanel
+              title="Know what you are measuring"
+              icon="review"
+              note="Definitions, coverage and current reporting limits."
+            >
+              <div className="an-coverage">
+                <MediaIcon name="calendar" />
+                <p>
+                  {s.availableFrom
+                    ? "Playback observations available from " +
+                      momentLabel(s.availableFrom) +
+                      "."
+                    : "No playback observations are available yet."}{" "}
+                  Counts reflect captured activity, not historical traffic
+                  imported from another service.
+                </p>
+              </div>
+              <details className="an-details">
+                <summary>
+                  Metric definitions{" "}
+                  <span>{Object.keys(report.definitions).length} notes</span>
+                </summary>
+                <dl className="an-definitions">
+                  {Object.entries(report.definitions).map(([key, value]) => (
+                    <div key={key}>
+                      <dt>{titleCase(key)}</dt>
+                      <dd>{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </details>
+              <p className="an-footnote">
+                Subscriber growth and commercial revenue reporting are not
+                included in this audience report. Sandbox orders do not
+                establish real revenue.
               </p>
-            ))}
-            <p>
-              First recorded session:{" "}
-              {s.availableFrom
-                ? new Date(s.availableFrom).toLocaleString()
-                : "None"}
-              . Refreshed: {new Date(report.generatedAt).toLocaleString()}.
-            </p>
-          </details>
-        </>
+            </AnalyticsPanel>
+          </>
+        )
       )}
     </div>
   );
