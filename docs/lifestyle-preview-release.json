@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-29",
+  "environment": "existing disposable preview",
+  "url": "https://mgtv-admin.vercel.app",
+  "commit": "32e10e5edb1632e92ad1615f924f269e8640af1c",
+  "deployment": "dpl_DZ8AfJj59RfjsgAuv6TdA1RiZLQC",
+  "state": "READY",
+  "priorNewsDeployment": "dpl_4La3hh6hJwvMq6awy4G7ckr7HVMi",
+  "apiChanged": false,
+  "customerChanged": false,
+  "migrations": [],
+  "permissionsGranted": [],
+  "providerUploads": 0,
+  "hostedChecks": [
+    "Authenticated artwork grid",
+    "Travel topic and Clear",
+    "Saved reading detail",
+    "Five-option category editor",
+    "Reason-required publication cancelled without mutation",
+    "Grid/editor at 320/390/768/1440 with no overflow",
+    "Browser error/warning logs empty",
+    "Health 200; guest management 401"
+  ],
+  "pending": [
+    "DRM",
+    "Production email"
+  ],
+  "stopBefore": "Homepage & Featured Content"
+}

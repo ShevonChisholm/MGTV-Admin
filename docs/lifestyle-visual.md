@@ -1,6 +1,6 @@
 # Lifestyle & Culture — admin visual improvements
 
-29 October 2026. Implementation and local acceptance complete; preview rollout pending this checkpoint. News has already deployed as 59ce0b0 / dpl_4La3hh6hJwvMq6awy4G7ckr7HVMi.
+29 October 2026. Deployed and verified at https://mgtv-admin.vercel.app/admin/lifestyle. Admin commit 32e10e5edb1632e92ad1615f924f269e8640af1c; Vercel dpl_DZ8AfJj59RfjsgAuv6TdA1RiZLQC, READY. News has already deployed as 59ce0b0 / dpl_4La3hh6hJwvMq6awy4G7ckr7HVMi.
 
 ## Presentation
 The text list is now an artwork-led story library. Cover cards show saved headline/summary, byline, status and actual reading-time estimates. Icon-led topic filters use the existing server category filter for Food & Cooking, Travel, Fashion, Culture and Wellness; loaded counts are labelled as loaded rather than database totals. Search/status filters, Clear and cursor load-more remain server-backed. Pagination retains applied filters and excludes duplicate IDs; obsolete responses cannot replace newer results.
@@ -17,3 +17,7 @@ No article revision, publication or media upload was committed during local acce
 
 ## Stop point
 Stop before Homepage & Featured Content. Remaining admin visual queue is docs/admin-visual-roadmap.md. DRM and production email remain pending.
+
+
+## Hosted acceptance
+Stable alias and exact Git commit verified. Existing preview staff session opened eleven story cards; visible cover images loaded. Travel filtered to two stories and Clear restored the full library. Saved reading detail, five-option category editor and reason-required publication dialog passed; confirmation was disabled without a reason and the dialog was cancelled. Hosted grid and editor fit 320/390/768/1440px without page overflow. Checked browser error/warning logs were empty. The admin health proxy returned 200/ok/preview/postgresql; cookie-free Lifestyle management returned 401. No hosted content or access change was made. Previous News deployment dpl_4La3hh6hJwvMq6awy4G7ckr7HVMi is the application rollback target; no database migration was part of this release.
