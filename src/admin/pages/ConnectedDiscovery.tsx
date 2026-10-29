@@ -232,7 +232,6 @@ export default function ConnectedDiscovery() {
       "artist",
       "album",
       "playlist",
-      "event",
     ].includes(pickerKind)
       ? "after"
       : "cursor";

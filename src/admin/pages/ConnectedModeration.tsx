@@ -16,6 +16,19 @@ import { StatusPill, Toolbar, Note } from "../ui/ops";
 import { PRIORITY, REPORT_OUTCOME } from "./opsMeta";
 import { PageActions } from "../components/PageHeader";
 import StaffAuth from "./StaffAuth";
+import MediaIcon from "../components/MediaIcon";
+import ModerationReportCard, {
+  ModerationEvidenceHeader,
+  ModerationQueueSummary,
+  ModerationActivity,
+  moderationPaths,
+  moderationResource,
+} from "../components/ModerationVisual";
+import { homepageImage } from "../components/HomepageVisual";
+import { DiscoveryContentCard } from "../components/DiscoveryVisual";
+import EpisodeSelector from "../components/EpisodeSelector";
+import "../components/DiscoveryVisual.css";
+import "../components/ModerationVisual.css";
 const outcomeFor = (kind: string) =>
   kind === "comment"
     ? {
@@ -74,6 +87,13 @@ function Workspace({ id }: { id?: string }) {
     [reason, setReason] = useState(""),
     [newPriority, setNewPriority] = useState("medium"),
     [composing, setComposing] = useState(false),
+    [pane, setPane] = useState("evidence"),
+    [artwork, setArtwork] = useState<string | null>(null),
+    [artworkNotice, setArtworkNotice] = useState(""),
+    [targetLabel, setTargetLabel] = useState(""),
+    [targetSearch, setTargetSearch] = useState(""),
+    [targetQuery, setTargetQuery] = useState(""),
+    [targetCursor, setTargetCursor] = useState<string | null>(null),
     [targets, setTargets] = useState<any[]>([]),
     [draft, setDraft] = useState({
       kind: "movie",
@@ -82,6 +102,12 @@ function Workspace({ id }: { id?: string }) {
       note: "",
     });
   const request = useRef<{ body: string; key: string } | null>(null);
+  const appliedFilters = useRef({
+    status: "open",
+    kind: "",
+    priority: "",
+    q: "",
+  });
   const can = (p: string) => !!session?.permissions.includes(p);
   const allowed = can("moderation.act");
   const copy =
@@ -125,22 +151,34 @@ function Workspace({ id }: { id?: string }) {
       setBusy(false);
     }
   }
-  async function load(after?: string, tab = status) {
+  async function load(
+    after?: string,
+    tab = status,
+    override?: { kind: string; priority: string; q: string },
+  ) {
+    const criteria = after
+      ? appliedFilters.current
+      : { status: tab, ...(override ?? { kind, priority, q }) };
+    if (!after) appliedFilters.current = criteria;
     if (id) {
       setReport(await api("/admin/moderation/reports/" + id));
     } else {
       const p = await api(
         "/admin/moderation/reports?" +
           new URLSearchParams({
-            status: tab,
-            kind,
-            priority,
-            q,
+            ...criteria,
             limit: "30",
             ...(after ? { after } : {}),
           }),
       );
-      setItems((old) => (after ? [...old, ...p.items] : p.items));
+      setItems((old) =>
+        after
+          ? [
+              ...old,
+              ...p.items.filter((r: any) => !old.some((x) => x.id === r.id)),
+            ]
+          : p.items,
+      );
       setCursor(p.nextCursor);
     }
     setCounts(await api("/admin/moderation/summary"));
@@ -156,36 +194,65 @@ function Workspace({ id }: { id?: string }) {
     }).finally(() => setLoaded(true));
   }, []);
   useEffect(() => {
-    if (!composing || draft.kind === "comment") return;
     let active = true;
+    setArtwork(null);
+    setArtworkNotice("");
+    if (!report || report.kind === "comment") return;
+    if (!can(moderationResource(report.kind) + ".read")) {
+      setArtworkNotice(
+        "Linked artwork requires separate content-read permission.",
+      );
+      return;
+    }
+    void api(`/admin/${moderationPaths[report.kind]}/${report.content_id}`)
+      .then((r) => {
+        if (active)
+          setArtwork(
+            report.kind === "podcast"
+              ? r.coverUrl
+              : homepageImage(report.kind, r),
+          );
+      })
+      .catch(() => {
+        if (active)
+          setArtworkNotice(
+            "Current artwork could not be loaded. Captured report evidence remains available.",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [report?.content_id, report?.kind, report?.target?.version, session]);
+  useEffect(() => {
+    if (!composing) return;
     setTargets([]);
+    setTargetCursor(null);
+    if (["comment", "episode"].includes(draft.kind)) return;
+    let active = true;
     void run(async () => {
-      const paths: any = {
-        sports: "sports",
-        movie: "movies",
-        show: "shows",
-        episode: "episodes",
-        music: "music",
-        event: "events",
-      };
-      const rows: any[] = [];
-      let next = "";
-      do {
-        const p = await api(
-          "/admin/" +
-            paths[draft.kind] +
-            "?limit=50" +
-            (next ? "&cursor=" + encodeURIComponent(next) : ""),
-        );
-        rows.push(...p.items);
-        next = p.nextCursor;
-      } while (next && active);
-      if (active) setTargets(rows);
+      const p = await api(
+        `/admin/${moderationPaths[draft.kind]}?limit=24&q=${encodeURIComponent(targetQuery)}`,
+      );
+      if (active) {
+        setTargets(p.items);
+        setTargetCursor(p.nextCursor);
+      }
     });
     return () => {
       active = false;
     };
-  }, [composing, draft.kind]);
+  }, [composing, draft.kind, targetQuery]);
+  async function moreTargets() {
+    const parameter = ["podcast"].includes(draft.kind) ? "after" : "cursor";
+    const p = await api(
+      `/admin/${moderationPaths[draft.kind]}?limit=24&q=${encodeURIComponent(targetQuery)}&${parameter}=${encodeURIComponent(targetCursor ?? "")}`,
+    );
+    setTargets((old) => [
+      ...old,
+      ...p.items.filter((r: any) => !old.some((x) => x.id === r.id)),
+    ]);
+    setTargetCursor(p.nextCursor);
+  }
   async function confirm() {
     await run(async () => {
       if (action === "priority")
@@ -242,7 +309,7 @@ function Workspace({ id }: { id?: string }) {
     });
   }
   if (!loaded)
-    return <LoadingState label={<>Loading moderation…</>} variant="table" />;
+    return <LoadingState label={<>Loading moderation…</>} variant="cards" />;
   if (!session)
     return (
       <StaffAuth
@@ -260,7 +327,20 @@ function Workspace({ id }: { id?: string }) {
       </div>
     );
   return (
-    <div className="page-pad moderation-workspace">
+    <div className="page-pad moderation-workspace" aria-busy={busy}>
+      <header className="md-intro">
+        <span className="md-eyebrow">MGTV · COMMUNITY CARE</span>
+        <h2>
+          {id
+            ? "The context behind the report."
+            : "A clear view. A considered decision."}
+        </h2>
+        <p>
+          {id
+            ? "Compare the captured evidence, review related reports and record a reasoned decision."
+            : "Keep the community welcoming while treating every report and every story with care."}
+        </p>
+      </header>
       {error && (
         <div
           role="alert"
@@ -278,24 +358,29 @@ function Workspace({ id }: { id?: string }) {
         <>
           <PageActions>
             {allowed &&
-              ["movies", "shows", "music", "events", "sports"].some((p) =>
-                can(p + ".read"),
+              ["podcasts", "movies", "shows", "music", "events", "sports"].some(
+                (p) => can(p + ".read"),
               ) && (
                 <button
                   className="btn btn-primary"
                   onClick={() => {
                     setError("");
                     setComposing(true);
+                    setTargetSearch("");
+                    setTargetQuery("");
                   }}
                 >
+                  <MediaIcon name="plus" size={16} />
                   Create staff report
                 </button>
               )}
           </PageActions>
+          <ModerationQueueSummary counts={counts} />
           <Tabs
             label="Report status"
             value={status}
             onChange={(s: any) => {
+              if (busy) return;
               setStatus(s);
               void run(() => load(undefined, s));
             }}
@@ -309,6 +394,7 @@ function Workspace({ id }: { id?: string }) {
             <TextField
               label="Search reports"
               value={q}
+              maxLength={200}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Title, text or category"
             />
@@ -331,56 +417,39 @@ function Workspace({ id }: { id?: string }) {
               disabled={busy}
               onClick={() => void run(() => load())}
             >
+              <MediaIcon name="filter" size={16} />
               Apply filters
             </button>
+            {(kind || priority || q) && (
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => {
+                  setKind("");
+                  setPriority("");
+                  setQ("");
+                  void run(() =>
+                    load(undefined, status, { kind: "", priority: "", q: "" }),
+                  );
+                }}
+              >
+                Clear filters
+              </button>
+            )}
           </Toolbar>
+          <div className="md-loaded">
+            <span>
+              {items.length} loaded reports · {status} queue
+            </span>
+            <span>
+              {cursor ? "More reports available" : "End of this filtered queue"}
+            </span>
+          </div>
           {items.length ? (
-            <div className="scroll-x">
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th>Reported item</th>
-                    <th>Type</th>
-                    <th>Priority</th>
-                    <th>Reports on item</th>
-                    <th>{status === "open" ? "Received" : "Outcome"}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((r) => (
-                    <tr key={r.id}>
-                      <td>
-                        <Link to={"/admin/moderation/" + r.id}>
-                          {r.snapshot.title}
-                        </Link>
-                        <div
-                          style={{
-                            fontSize: 12.5,
-                            color: "var(--text-secondary)",
-                          }}
-                        >
-                          {r.category}
-                        </div>
-                      </td>
-                      <td>{r.kind}</td>
-                      <td>
-                        <StatusPill map={PRIORITY} value={r.priority} />
-                      </td>
-                      <td>{r.report_count}</td>
-                      <td>
-                        {r.status === "open" ? (
-                          new Date(r.created_at).toLocaleString()
-                        ) : (
-                          <StatusPill
-                            map={outcomeFor(r.kind)}
-                            value={r.outcome}
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="md-queue-grid">
+              {items.map((r) => (
+                <ModerationReportCard key={r.id} record={r} />
+              ))}
             </div>
           ) : (
             !busy &&
@@ -403,7 +472,33 @@ function Workspace({ id }: { id?: string }) {
         </>
       ) : report ? (
         <>
-          <Link to="/admin/moderation">← Back to the queue</Link>
+          <Link className="md-back" to="/admin/moderation">
+            <MediaIcon name="back" size={16} />
+            Back to the queue
+          </Link>
+          <ModerationEvidenceHeader
+            report={report}
+            image={artwork}
+            notice={artworkNotice}
+          />
+          <nav className="md-pane-nav" aria-label="Report workspace">
+            {[
+              { id: "evidence", label: "Evidence", icon: "image" },
+              { id: "context", label: "Report details", icon: "users" },
+              { id: "related", label: "Related reports", icon: "link" },
+              { id: "activity", label: "Activity", icon: "clock" },
+            ].map((x) => (
+              <button
+                className="btn"
+                key={x.id}
+                aria-pressed={pane === x.id}
+                onClick={() => setPane(x.id)}
+              >
+                <MediaIcon name={x.icon} size={17} />
+                {x.label}
+              </button>
+            ))}
+          </nav>
           <div style={{ height: 14 }} />
           {!allowed && (
             <Note title="Read-only access">
@@ -411,168 +506,176 @@ function Workspace({ id }: { id?: string }) {
               permission to decide.
             </Note>
           )}
-          <div className="editor-layout">
+          <div className="md-detail-layout">
             <div>
-              <Card title="Reported item">
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <Badge color="#C9A84C">{report.kind}</Badge>
-                  <StatusPill map={PRIORITY} value={report.priority} />
-                  <Badge
-                    color={
-                      ["published", "active"].includes(report.target.status)
-                        ? "#4ade80"
-                        : "#fbbf24"
-                    }
-                  >
-                    {report.target.status}
-                  </Badge>
-                </div>
-                <h3 style={{ overflowWrap: "anywhere" }}>
-                  {report.snapshot.title}
-                </h3>
-                <blockquote
-                  style={{
-                    margin: 0,
-                    padding: "10px 14px",
-                    borderLeft: "3px solid var(--border-light)",
-                    background: "var(--bg)",
-                    borderRadius: 6,
-                    lineHeight: 1.6,
-                    overflowWrap: "anywhere",
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {report.snapshot.snippet ||
-                    "No description was available when this report was received."}
-                </blockquote>
-                {report.kind === "comment" && (
-                  <div style={{ marginTop: 16 }}>
-                    <strong>Current comment text</strong>
-                    <p
+              {pane === "evidence" && (
+                <>
+                  <Card title="Captured evidence">
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <Badge color="#C9A84C">{report.kind}</Badge>
+                      <StatusPill map={PRIORITY} value={report.priority} />
+                      <Badge
+                        color={
+                          ["published", "active"].includes(report.target.status)
+                            ? "#4ade80"
+                            : "#fbbf24"
+                        }
+                      >
+                        {report.target.status}
+                      </Badge>
+                    </div>
+                    <h3 style={{ overflowWrap: "anywhere" }}>
+                      {report.snapshot.title}
+                    </h3>
+                    <blockquote
                       style={{
-                        whiteSpace: "pre-wrap",
+                        margin: 0,
+                        padding: "10px 14px",
+                        borderLeft: "3px solid var(--border-light)",
+                        background: "var(--bg)",
+                        borderRadius: 6,
+                        lineHeight: 1.6,
                         overflowWrap: "anywhere",
-                        fontSize: 13,
+                        whiteSpace: "pre-wrap",
                       }}
                     >
-                      {report.target.currentSnippet}
+                      {report.snapshot.snippet ||
+                        "No description was available when this report was received."}
+                    </blockquote>
+                    {report.kind === "comment" && (
+                      <div style={{ marginTop: 16 }}>
+                        <strong>Current comment text</strong>
+                        <p
+                          style={{
+                            whiteSpace: "pre-wrap",
+                            overflowWrap: "anywhere",
+                            fontSize: 13,
+                          }}
+                        >
+                          {report.target.currentSnippet}
+                        </p>
+                      </div>
+                    )}
+                    <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
+                      {report.kind === "comment"
+                        ? "Comment evidence captured when the report was received."
+                        : report.reporter_staff_id
+                          ? "Saved draft evidence captured for this staff report."
+                          : "Published evidence captured when this customer reported."}{" "}
+                      Current visibility: {report.target.status}.{" "}
+                      {report.target.lastRemovedAt &&
+                        (report.kind === "comment"
+                          ? "Reopening or approval does not restore a removed comment."
+                          : "A removal decision is recorded; reopening or approval does not republish.")}
                     </p>
-                  </div>
-                )}
-                <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-                  {report.kind === "comment"
-                    ? "Comment evidence captured when the report was received."
-                    : report.reporter_staff_id
-                      ? "Saved draft evidence captured for this staff report."
-                      : "Published evidence captured when this customer reported."}{" "}
-                  Current visibility: {report.target.status}.{" "}
-                  {report.target.lastRemovedAt &&
-                    (report.kind === "comment"
-                      ? "Reopening or approval does not restore a removed comment."
-                      : "A removal decision is recorded; reopening or approval does not republish.")}
-                </p>
-                {can(
-                  ((
-                    {
-                      movie: "movies",
-                      show: "shows",
-                      episode: "shows",
-                      music: "music",
-                      event: "events",
-                      sports: "sports",
-                    } as Record<string, string>
-                  )[report.kind] ?? report.kind) + ".read",
-                ) && (
-                  <Link
-                    to={
-                      (report.kind === "event"
-                        ? "/admin/"
-                        : "/admin/content/") +
-                      (
-                        {
-                          sports: "sports",
-                          movie: "movies",
-                          show: "shows",
-                          episode: "episodes",
-                          music: "music",
-                          event: "events",
-                        } as any
-                      )[report.kind] +
-                      "/" +
-                      report.content_id
-                    }
-                  >
-                    Open linked content
-                  </Link>
-                )}
-              </Card>
-              {report.kind === "comment" && report.target.discussion && (
-                <DiscussionControls
-                  key={
-                    report.target.discussion.kind +
-                    report.target.discussion.targetId
-                  }
-                  discussion={report.target.discussion}
-                  canManage={allowed}
-                />
+                    {report.kind !== "comment" &&
+                      can(moderationResource(report.kind) + ".read") && (
+                        <Link
+                          className="btn md-back"
+                          to={
+                            (report.kind === "event" ||
+                            report.kind === "podcast"
+                              ? "/admin/"
+                              : "/admin/content/") +
+                            moderationPaths[report.kind] +
+                            "/" +
+                            report.content_id
+                          }
+                        >
+                          <MediaIcon name="arrow" size={16} />
+                          Open linked content
+                        </Link>
+                      )}
+                  </Card>
+                  {report.kind === "comment" && report.target.discussion && (
+                    <DiscussionControls
+                      key={
+                        report.target.discussion.kind +
+                        report.target.discussion.targetId
+                      }
+                      discussion={report.target.discussion}
+                      canManage={allowed}
+                    />
+                  )}
+                </>
               )}
-              <Card title="This report">
-                <dl className="moderation-facts">
-                  <dt>Reason</dt>
-                  <dd>{report.category}</dd>
-                  <dt>Reporter</dt>
-                  <dd>
-                    {report.reporter_name} ·{" "}
-                    {report.reporter_staff_id ? "Staff" : "Customer profile"}
-                  </dd>
-                  <dt>Received</dt>
-                  <dd>{new Date(report.created_at).toLocaleString()}</dd>
-                  <dt>Reporter’s note</dt>
-                  <dd style={{ whiteSpace: "pre-wrap" }}>
-                    {report.note || "None provided"}
-                  </dd>
-                </dl>
-              </Card>
-              <Card
-                title={
-                  "Reports on this item (" +
-                  report.relatedCounts.total +
-                  " total; " +
-                  report.related.length +
-                  " shown)"
-                }
-              >
-                {report.related.map((r: any) => (
-                  <p key={r.id}>
-                    <Link to={"/admin/moderation/" + r.id}>
-                      {r.category}
-                      {r.id === report.id ? " (this report)" : ""}
-                    </Link>{" "}
-                    · {r.reporter_name} ·{" "}
-                    {r.status === "open" ? "Open" : r.outcome}
-                  </p>
-                ))}
-              </Card>
-              <Card title="Activity history">
-                {report.history.length ? (
-                  report.history.map((h: any) => (
-                    <p key={h.id}>
-                      {new Date(h.created_at).toLocaleString()} · {h.action}
-                      <br />
-                      {h.details.reason}
+              {pane === "context" && (
+                <Card title="This report">
+                  <dl className="moderation-facts">
+                    <dt>Reason</dt>
+                    <dd>{report.category}</dd>
+                    <dt>Reporter</dt>
+                    <dd>
+                      {report.reporter_name} ·{" "}
+                      {report.reporter_staff_id ? "Staff" : "Customer profile"}
+                    </dd>
+                    <dt>Received</dt>
+                    <dd>{new Date(report.created_at).toLocaleString()}</dd>
+                    <dt>Reporter’s note</dt>
+                    <dd style={{ whiteSpace: "pre-wrap" }}>
+                      {report.note || "None provided"}
+                    </dd>
+                  </dl>
+                </Card>
+              )}
+              {pane === "related" && (
+                <Card
+                  title={
+                    "Reports on this item (" +
+                    report.relatedCounts.total +
+                    " total; " +
+                    report.related.length +
+                    " shown)"
+                  }
+                >
+                  <ul className="md-related">
+                    {report.related.map((r: any) => (
+                      <li key={r.id}>
+                        <MediaIcon name="review" size={19} />
+                        <div>
+                          <Link to={"/admin/moderation/" + r.id}>
+                            {r.category}
+                            {r.id === report.id ? " · This report" : ""}
+                          </Link>
+                          <small>
+                            {r.reporter_name} ·{" "}
+                            {new Date(r.created_at).toLocaleString()}
+                          </small>
+                        </div>
+                        {r.status === "open" ? (
+                          <Badge color="#d6b354">Open</Badge>
+                        ) : (
+                          <StatusPill
+                            map={outcomeFor(report.kind)}
+                            value={r.outcome}
+                          />
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              )}
+              {pane === "activity" && (
+                <Card title="Activity history">
+                  {report.history.length ? (
+                    <ModerationActivity items={report.history} />
+                  ) : (
+                    <p className="md-footnote">
+                      No staff decision recorded yet.
                     </p>
-                  ))
-                ) : (
-                  <p>No staff decision recorded yet.</p>
-                )}
-              </Card>
+                  )}
+                </Card>
+              )}
             </div>
             <aside>
               <Card title="Decision">
                 {report.status === "open" ? (
-                  <div style={{ display: "grid", gap: 14 }}>
+                  <div
+                    className="md-staff-report"
+                    style={{ display: "grid", gap: 14 }}
+                  >
                     {["approved", "dismissed", "removed"].map((a) => (
-                      <div key={a}>
+                      <div className="md-decision-option" key={a}>
                         <button
                           className={
                             "btn " +
@@ -593,6 +696,7 @@ function Workspace({ id }: { id?: string }) {
                               !can(
                                 ((
                                   {
+                                    podcast: "podcasts",
                                     movie: "movies",
                                     show: "shows",
                                     episode: "shows",
@@ -609,6 +713,16 @@ function Workspace({ id }: { id?: string }) {
                             setAction(a);
                           }}
                         >
+                          <MediaIcon
+                            name={
+                              a === "approved"
+                                ? "check"
+                                : a === "dismissed"
+                                  ? "minus"
+                                  : "archive"
+                            }
+                            size={17}
+                          />
                           {copy[a].label}
                         </button>
                         <p
@@ -678,10 +792,16 @@ function Workspace({ id }: { id?: string }) {
       {action && (
         <Modal
           title={copy[action].label + "?"}
-          onClose={() => setAction("")}
+          onClose={() => {
+            if (!busy) setAction("");
+          }}
           footer={
             <>
-              <button className="btn" onClick={() => setAction("")}>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => setAction("")}
+              >
                 Back
               </button>
               <button
@@ -696,6 +816,16 @@ function Workspace({ id }: { id?: string }) {
             </>
           }
         >
+          <div className="md-confirm-summary">
+            <span className="md-eyebrow">
+              {report.kind} · REPORT VERSION {report.version}
+            </span>
+            <h3>{report.snapshot.title}</h3>
+            <div className="md-badges">
+              <StatusPill map={PRIORITY} value={report.priority} />
+              <Badge color="#a4acba">{report.target.status}</Badge>
+            </div>
+          </div>
           <p>{copy[action].effect}</p>
           {error && (
             <p role="alert" style={{ color: "var(--red)" }}>
@@ -721,10 +851,17 @@ function Workspace({ id }: { id?: string }) {
       {composing && (
         <Modal
           title="Create staff report"
-          onClose={() => setComposing(false)}
+          width={960}
+          onClose={() => {
+            if (!busy) setComposing(false);
+          }}
           footer={
             <>
-              <button className="btn" onClick={() => setComposing(false)}>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => setComposing(false)}
+              >
                 Cancel
               </button>
               <button
@@ -737,7 +874,7 @@ function Workspace({ id }: { id?: string }) {
             </>
           }
         >
-          <div style={{ display: "grid", gap: 14 }}>
+          <div className="md-staff-report" style={{ display: "grid", gap: 14 }}>
             {error && (
               <p role="alert" style={{ color: "var(--red)" }}>
                 {error}
@@ -746,10 +883,14 @@ function Workspace({ id }: { id?: string }) {
             <SelectField
               label="Content type"
               options={options.kinds}
+              disabled={busy}
               value={draft.kind}
-              onChange={(e) =>
-                setDraft({ ...draft, kind: e.target.value, contentId: "" })
-              }
+              onChange={(e) => {
+                setDraft({ ...draft, kind: e.target.value, contentId: "" });
+                setTargetQuery("");
+                setTargetSearch("");
+                setTargetLabel("");
+              }}
             />
             {draft.kind === "comment" ? (
               <TextField
@@ -761,23 +902,61 @@ function Workspace({ id }: { id?: string }) {
               />
             ) : (
               <>
-                <label>
-                  Reported item
-                  <select
-                    className="input"
-                    value={draft.contentId}
-                    onChange={(e) =>
-                      setDraft({ ...draft, contentId: e.target.value })
-                    }
+                {draft.kind === "episode" ? (
+                  <EpisodeSelector onRows={setTargets} onError={setError} />
+                ) : (
+                  <form
+                    className="md-target-search"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      setTargetQuery(targetSearch.trim());
+                    }}
                   >
-                    <option value="">Choose an item</option>
-                    {targets.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.draft?.title ?? t.title} · {t.status}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    <input
+                      className="input"
+                      aria-label="Search report content"
+                      maxLength={200}
+                      value={targetSearch}
+                      onChange={(e) => setTargetSearch(e.target.value)}
+                    />
+                    <button className="btn" disabled={busy}>
+                      Search
+                    </button>
+                  </form>
+                )}
+                <p className="md-footnote">
+                  Choose one item. {targets.length} loaded ·{" "}
+                  {draft.contentId
+                    ? "Selected: " + (targetLabel || draft.contentId)
+                    : "No item selected"}
+                </p>
+                <div className="md-target-grid">
+                  {targets.map((t) => (
+                    <DiscoveryContentCard
+                      key={t.id}
+                      record={t}
+                      kind={draft.kind}
+                      checked={t.id === draft.contentId}
+                      disabled={busy}
+                      onToggle={() => {
+                        setDraft({
+                          ...draft,
+                          contentId: draft.contentId === t.id ? "" : t.id,
+                        });
+                        setTargetLabel(t.draft?.title ?? t.title ?? t.id);
+                      }}
+                    />
+                  ))}
+                </div>
+                {targetCursor && (
+                  <button
+                    className="btn"
+                    disabled={busy}
+                    onClick={() => void run(moreTargets)}
+                  >
+                    More content
+                  </button>
+                )}
               </>
             )}
             <SelectField
