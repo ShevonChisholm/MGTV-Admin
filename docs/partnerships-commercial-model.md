@@ -1,6 +1,6 @@
 # Partnerships and customer-plan administration
 
-Local verification completed 29 October 2026. API and admin are now deployed to the disposable preview; authenticated hosted acceptance awaits preview-owner MFA recovery. DRM and production email remain pending.
+Local verification completed 29 October 2026. API and admin are now deployed to the disposable preview; authenticated hosted acceptance is complete. DRM and production email remain pending.
 
 ## Implemented UI
 
@@ -27,4 +27,8 @@ Local partnership read/manage/approve/activate grants and the separately approve
 
 Screenshots are stored under `docs/evidence/partnerships/`. Architecture, concrete relationship mappings, migration safety and financial execution boundaries are documented in the API repository's `docs/partnerships-commercial-model.md`. Paid partner activation/settlement and automatic benefit delivery remain blocked until their adapters and policies exist.
 
-Hosted admin commit `0e64c19` is READY at https://mgtv-admin.vercel.app, backed by API `40ef9fe`. Encrypted backup and migrations passed; four memberships, one checkout and tier policies were preserved. Hosted browser acceptance is pending because the preview administrator needs controlled MFA re-enrolment; the local account is separate. No MFA reset has been applied.
+Hosted admin commit `0e64c19` is READY at https://mgtv-admin.vercel.app, backed by API `40ef9fe`. Encrypted backup and migrations passed; four memberships, one checkout and tier policies were preserved. Hosted browser acceptance is complete after the owner imported the original private preview key into their authenticator. No MFA reset was applied.
+
+## Completed hosted acceptance
+
+The owner successfully used the existing private preview authenticator key; the recovery plan was closed without reset. Hosted partner/service/offering/agreement save checks passed with fictional inactive/planned/draft review records. Revision retrieval, named Shop relationships, read-side product agreement links, before/after plan review and cancellation passed. The plan page/review and revision modal fit 320/390/768/1440px with no horizontal page overflow. Browser console was clean. No tier policy change, agreement approval/activation, payment, payout or MFA reset was performed. API release evidence records the review IDs.
