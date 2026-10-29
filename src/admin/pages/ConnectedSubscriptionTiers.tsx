@@ -94,11 +94,13 @@ export default function ConnectedSubscriptionTiers() {
         />
       ) : (
         <>
-          <div className="av-callout">
+          <div className="av-callout pt-plan-notice">
             <MediaIcon name="lock" />
-            Customer membership remains provider-managed. Staff can define
-            eligible benefits but cannot grant paid access. Partner services and
-            commercial agreements are managed separately.
+            <span>
+              Customer membership remains provider-managed. Staff can define
+              eligible benefits but cannot grant paid access. Partner services
+              and commercial agreements are managed separately.
+            </span>
             <Link className="btn" to="/admin/partnerships">
               Partnerships
             </Link>

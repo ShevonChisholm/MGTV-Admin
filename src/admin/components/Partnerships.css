@@ -195,3 +195,21 @@
 .pt-workspace > .access-actions {
   position: static;
 }
+
+.pt-plan-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+}
+.pt-plan-notice > .btn {
+  white-space: nowrap;
+}
+@media (max-width: 680px) {
+  .pt-plan-notice {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .pt-plan-notice > .btn {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
