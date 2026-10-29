@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-29",
+  "environment": "existing disposable preview",
+  "status": "READY and hosted verified",
+  "admin": {
+    "commit": "a48644a6286a84e0beb60b2a83f25fd1a0c8ffc1",
+    "deployment": "dpl_7S5NfWLDH7Yu619SCYizdc7exzDo",
+    "url": "https://mgtv-admin.vercel.app/admin/communications",
+    "rollbackDeployment": "dpl_GyWDRrN5RRyPBHFGSyGHrzXbW1JY"
+  },
+  "scope": [
+    "Contact inbox visual directory and focused detail",
+    "Subscriber consent overview and history",
+    "Newsletter directory, compose preview and recorded outcomes"
+  ],
+  "checks": {
+    "preRelease": "TypeScript/build passed; 11 isolated Contact & Newsletter API tests passed",
+    "hosted": [
+      "normal preview staff session",
+      "enquiry submitted search and reset",
+      "resolved-status filter",
+      "enquiry history and fixture reply exclusion",
+      "subscriber consent policy and suppression controls",
+      "newsletter content preview and no-outcome state",
+      "fixture send exclusion",
+      "empty new-draft validation; no record saved"
+    ],
+    "hostedWidths": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "listAndDetailContainmentChecks": 24,
+    "pageOrDescendantOverflow": false,
+    "capturedBrowserWarningsOrErrors": []
+  },
+  "hostedMutations": false,
+  "apiDeployment": false,
+  "dataOrPermissionChanges": false,
+  "pending": [
+    "DRM",
+    "production email",
+    "other existing workflow/API gaps"
+  ],
+  "nextVisualArea": "Careers; not started",
+  "evidence": [
+    "communications-hosted-inbox.png",
+    "communications-hosted-newsletter.png"
+  ]
+}

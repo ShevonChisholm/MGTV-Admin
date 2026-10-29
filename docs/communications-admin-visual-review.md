@@ -1,6 +1,6 @@
 # Contact & Newsletter admin visual review
 
-29 October 2026. Local implementation and verification; not deployed.
+29 October 2026. Deployed and hosted-verified at the existing disposable preview. See communications-preview-release.json for the exact release and rollback details.
 
 ## Changes
 
@@ -27,4 +27,7 @@ Evidence: communications-newsletter-desktop.png, communications-newsletter-mobil
 
 ## Deferred
 
-DRM and production email remain pending. Production sender/domain/inbox setup, broader automation and other workflow/API gaps remain separate. Preview deployment pending. Stop before Careers.
+DRM and production email remain pending. Production sender/domain/inbox setup, broader automation and other workflow/API gaps remain separate. Preview rollout READY and hosted verified. Stop before Careers.
+
+
+Hosted verification: normal preview staff session; all 24 list/detail containment checks passed at 320-1440px, with no captured browser warnings/errors. Submitted search/reset, resolved status, contact history, subscriber policy/suppression controls, newsletter preview/no-outcome state, fixture send exclusion and empty new-draft validation passed. No hosted data changes, sends, consent actions or permission grants. Evidence: communications-hosted-inbox.png and communications-hosted-newsletter.png.
