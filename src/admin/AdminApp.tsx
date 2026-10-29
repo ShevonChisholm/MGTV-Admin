@@ -318,7 +318,9 @@ function Shell() {
       ],
       title: page === "users" ? "Staff users" : "Customer users",
       description:
-        "Manage account records, status and customer profiles. Staff and customer authentication use separate sessions.",
+        page === "users"
+          ? "Staff identities, account status and secure access. Staff authentication stays separate from customers."
+          : "Customer households, profiles and viewing policies. Open an account for its full workspace.",
     };
 
   if (connected && route.section === "auth")

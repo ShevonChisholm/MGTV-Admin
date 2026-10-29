@@ -1,3 +1,4 @@
+import MediaIcon from "../components/MediaIcon";
 import LoadingState from "../components/LoadingState";
 import React, { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
@@ -209,12 +210,12 @@ export default function ConnectedProfiles({
         Customer profiles
       </h3>
       <p style={{ margin: "8px 0", color: "var(--text-secondary)" }}>
-        {items.length} of {limit} subscription slots · One protected main adult
-        profile
+        {items.length} profiles stored · {limit} available under the current
+        plan · One protected main adult profile
       </p>
       <p style={{ fontSize: 13, marginBottom: 16 }}>
-        Movie classifications are enforced. Profiles with daily limits cannot
-        play full films until viewing-budget enforcement is available.
+        Age classifications and daily viewing budgets are enforced by the
+        server. Review each profile’s policy before making changes.
       </p>
       {suspended && (
         <p role="status">Reinstate this account to change profiles.</p>
@@ -252,9 +253,9 @@ export default function ConnectedProfiles({
               gap: 12,
             }}
           >
-            {items.map((p) => (
+            {items.map((p, index) => (
               <article
-                className="card"
+                className="card pv-profile-card"
                 key={p.id}
                 style={{ padding: 18, minWidth: 0, overflowWrap: "anywhere" }}
               >
@@ -275,7 +276,7 @@ export default function ConnectedProfiles({
                   >
                     {p.name.charAt(0).toUpperCase()}
                   </span>
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <h4>{p.name}</h4>
                     <small>
                       {p.type}
@@ -283,12 +284,52 @@ export default function ConnectedProfiles({
                     </small>
                   </div>
                 </div>
-                <p style={{ fontSize: 13, margin: "12px 0" }}>
-                  Classification: {p.maxClassification} · Daily limit:{" "}
-                  {p.dailyLimitMinutes === null
-                    ? "Not set"
-                    : p.dailyLimitMinutes + " min"}
-                </p>
+                {index >= limit && (
+                  <p className="pv-protected">
+                    <MediaIcon name="lock" size={15} />
+                    Preserved · outside current plan allowance
+                  </p>
+                )}
+                <dl className="pv-profile-facts">
+                  <div>
+                    <dt>
+                      <MediaIcon name="review" size={16} />
+                      Up to
+                    </dt>
+                    <dd>{p.maxClassification}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <MediaIcon name="clock" size={16} />
+                      Daily budget
+                    </dt>
+                    <dd>
+                      {p.dailyLimitMinutes === null
+                        ? "No limit"
+                        : p.dailyLimitMinutes + " min"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <MediaIcon name="lock" size={16} />
+                      Parental check
+                    </dt>
+                    <dd>{p.requirePin ? "Required" : "Not required"}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <MediaIcon name="globe" size={16} />
+                      Language
+                    </dt>
+                    <dd>{p.language}</dd>
+                  </div>
+                </dl>
+                {p.isMain && (
+                  <p className="pv-protected">
+                    <MediaIcon name="lock" size={15} />
+                    Protected main adult profile
+                  </p>
+                )}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button
                     className="btn"
@@ -296,7 +337,7 @@ export default function ConnectedProfiles({
                     onClick={() => open("edit", p)}
                     aria-label={"Edit profile " + p.name}
                   >
-                    Edit
+                    <MediaIcon name="edit" size={16} /> Edit
                   </button>
                   <button
                     className="btn"
@@ -304,7 +345,7 @@ export default function ConnectedProfiles({
                     onClick={() => open("policy", p)}
                     aria-label={"Parental settings for " + p.name}
                   >
-                    Parental settings
+                    <MediaIcon name="lock" size={16} /> Parental settings
                   </button>
                   {!p.isMain && (
                     <button
@@ -313,7 +354,7 @@ export default function ConnectedProfiles({
                       onClick={() => open("delete", p)}
                       aria-label={"Delete profile " + p.name}
                     >
-                      Delete
+                      <MediaIcon name="trash" size={16} /> Delete
                     </button>
                   )}
                 </div>
@@ -326,7 +367,7 @@ export default function ConnectedProfiles({
             disabled={busy || disabled || !loaded || items.length >= limit}
             onClick={() => open("create")}
           >
-            Add profile
+            <MediaIcon name="plus" size={18} /> Add profile
           </button>
           {items.length >= limit && (
             <p role="status" style={{ marginTop: 8 }}>
@@ -470,8 +511,9 @@ export default function ConnectedProfiles({
                   Require parental verification when switching to this profile
                 </label>
                 <small>
-                  Manage the parental PIN through account security. Playback
-                  enforcement remains unavailable.
+                  Manage the parental PIN through account security.
+                  Classification and viewing-budget checks remain enforced
+                  during playback.
                 </small>
               </>
             )}
