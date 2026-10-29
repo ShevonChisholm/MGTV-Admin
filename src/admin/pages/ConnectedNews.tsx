@@ -5,6 +5,13 @@ import { api, ApiError } from "../api/client";
 import { Link, useRouter, useDirtyGuard } from "../router";
 import { Card, Modal } from "../ui";
 import StaffAuth from "./StaffAuth";
+import MediaIcon from "../components/MediaIcon";
+import { ContentStatus } from "../components/ContentVisual";
+import NewsArtwork, {
+  ArticleReadingView,
+  articleStats,
+} from "../components/NewsVisual";
+import "../components/NewsVisual.css";
 const blank = () => ({
   title: "",
   summary: "",
@@ -35,15 +42,28 @@ function NewsEditor({ id }: { id?: string }) {
     [action, setAction] = useState(""),
     [reason, setReason] = useState(""),
     [history, setHistory] = useState<any>(null),
-    [preview, setPreview] = useState(false);
+    [preview, setPreview] = useState(false),
+    [pane, setPane] = useState("overview"),
+    [editorStep, setEditorStep] = useState("details"),
+    [mediaBusy, setMediaBusy] = useState(false);
   const leaving = useRef(false),
-    key = useRef<{ body: string; key: string } | null>(null);
+    key = useRef<{ body: string; key: string } | null>(null),
+    listGeneration = useRef(0),
+    appliedFilters = useRef({ q: "", status: "" }),
+    alive = useRef(true);
   const fresh = id === "new",
     can = (p: string) => !!session?.permissions.includes(p),
     dirty =
       !!id &&
       JSON.stringify(draft) !== JSON.stringify(record?.draft ?? blank());
-  useDirtyGuard(() => dirty && !leaving.current);
+  useDirtyGuard(() => (dirty || mediaBusy) && !leaving.current);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      listGeneration.current++;
+    };
+  }, []);
   async function run(fn: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -58,24 +78,37 @@ function NewsEditor({ id }: { id?: string }) {
     }
   }
   async function list(after?: string) {
+    const generation = ++listGeneration.current;
+    if (!after) appliedFilters.current = { q, status };
+    const filters = appliedFilters.current;
     const p = await api(
       "/admin/news?limit=30&q=" +
-        encodeURIComponent(q) +
+        encodeURIComponent(filters.q) +
         "&status=" +
-        status +
+        filters.status +
         (after ? "&after=" + encodeURIComponent(after) : ""),
     );
-    setItems((old) => (after ? [...old, ...p.items] : p.items));
+    if (!alive.current || generation !== listGeneration.current) return;
+    setItems((old) =>
+      after
+        ? [
+            ...old,
+            ...p.items.filter((row: any) => !old.some((x) => x.id === row.id)),
+          ]
+        : p.items,
+    );
     setCursor(p.nextCursor);
   }
   async function load() {
     const s = await api("/admin/session");
+    if (!alive.current) return;
     setSession(s);
     if (!s.permissions.includes("news.read"))
       throw Error("You need news.read to view News.");
     if (!id) await list();
     else if (!fresh) {
       const r = await api("/admin/news/" + id);
+      if (!alive.current) return;
       setRecord(r);
       setDraft(r.draft);
     }
@@ -103,7 +136,8 @@ function NewsEditor({ id }: { id?: string }) {
     );
     setRecord(r);
     setDraft(r.draft);
-    setNotice("Draft saved. Publish this revision when ready.");
+    setNotice("Draft saved. Review the saved story before publishing.");
+    setPane("overview");
     if (fresh) {
       leaving.current = true;
       navigate("/admin/news/" + r.id);
@@ -128,7 +162,12 @@ function NewsEditor({ id }: { id?: string }) {
   if (loaded && !session)
     return <StaffAuth onAuthenticated={() => run(load)} />;
   if (!loaded)
-    return <LoadingState label={<>Loading News…</>} variant="table" />;
+    return (
+      <LoadingState
+        label={<>Loading News…</>}
+        variant={id ? "form" : "cards"}
+      />
+    );
   const controls = (
     <>
       {error && (
@@ -146,74 +185,140 @@ function NewsEditor({ id }: { id?: string }) {
   if (!can("news.read")) return <>{controls}</>;
   if (!id)
     return (
-      <>
+      <div className="news-visual">
         {controls}
-        <Card>
-          <div className="news-toolbar">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void run(() => list());
-              }}
-            >
-              <label>
-                Search stories
-                <input
-                  className="input"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                />
-              </label>
-              <label>
-                Status
-                <select
-                  className="input"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <option value="">All statuses</option>
-                  {["draft", "published", "unpublished", "archived"].map(
-                    (s) => (
-                      <option key={s}>{s}</option>
-                    ),
-                  )}
-                </select>
-              </label>
-              <button disabled={busy} className="btn btn-secondary">
-                Search
-              </button>
-            </form>
-            {can("news.write") && (
-              <Link to="/admin/news/new" className="btn btn-primary">
-                New article
-              </Link>
-            )}
+        <div className="nv-library-head">
+          <div>
+            <span className="nv-kicker">
+              <MediaIcon name="review" size={15} /> MGTV · EDITORIAL DESK
+            </span>
+            <h2>Stories with something to say</h2>
+            <p>
+              Find a story by its cover. Open the saved article, shape its draft
+              and review publication.
+            </p>
           </div>
-          <div className="news-list">
-            {items.map((r) => (
-              <Link
-                key={r.id}
-                to={"/admin/news/" + r.id}
-                className="news-list-row"
-              >
-                <strong>{r.draft.title || "Untitled article"}</strong>
-                <span>{r.draft.category || "Uncategorized"}</span>
-                <span>{r.status}</span>
-              </Link>
-            ))}
-          </div>
-          {!items.length && <p>No articles match these filters.</p>}
-          {cursor && (
-            <button
-              disabled={busy}
-              className="btn btn-secondary"
-              onClick={() => void run(() => list(cursor))}
-            >
-              Load more
-            </button>
+          {can("news.write") && (
+            <Link to="/admin/news/new" className="btn btn-primary">
+              <MediaIcon name="plus" size={16} /> New article
+            </Link>
           )}
-        </Card>
-      </>
+        </div>
+        <form
+          className="nv-toolbar"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run(() => list());
+          }}
+          aria-label="Find articles"
+        >
+          <label className="nv-search">
+            Search stories
+            <input
+              className="input"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Headline or summary…"
+            />
+          </label>
+          <label>
+            Status
+            <select
+              className="input"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="">All statuses</option>
+              {["draft", "published", "unpublished", "archived"].map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </label>
+          <button disabled={busy} className="btn btn-secondary">
+            <MediaIcon name="search" size={16} /> Search
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            className="btn btn-ghost"
+            onClick={() => {
+              setQ("");
+              setStatus("");
+              appliedFilters.current = { q: "", status: "" };
+              void run(async () => {
+                const generation = ++listGeneration.current;
+                const p = await api("/admin/news?limit=30");
+                if (alive.current && generation === listGeneration.current) {
+                  setItems(p.items);
+                  setCursor(p.nextCursor);
+                }
+              });
+            }}
+          >
+            Clear
+          </button>
+        </form>
+        <p className="nv-result-count" role="status">
+          {busy
+            ? "Finding stories…"
+            : `${items.length} loaded ${items.length === 1 ? "story" : "stories"}${cursor ? " · more available" : ""}`}
+        </p>
+        <ul className="nv-grid" aria-label="Article library">
+          {items.map((r) => (
+            <li key={r.id}>
+              <Link
+                to={"/admin/news/" + r.id}
+                className="nv-story-card"
+                aria-label={"Open " + r.draft.title}
+              >
+                <div className="nv-card-cover">
+                  <NewsArtwork record={r} />
+                  <ContentStatus status={r.status} />
+                </div>
+                <div className="nv-card-copy">
+                  <span className="nv-kicker">
+                    {r.draft.category || "Category to come"}
+                  </span>
+                  <h3>{r.draft.title || "Untitled story"}</h3>
+                  <p>
+                    {r.draft.summary ||
+                      "Add a summary to introduce this story."}
+                  </p>
+                  <div className="nv-byline">
+                    <span>
+                      <MediaIcon name="artist" size={14} />
+                      {r.draft.author || "Byline to come"}
+                    </span>
+                    <span>
+                      <MediaIcon name="clock" size={14} />
+                      {articleStats(r.draft).minutes} min read
+                    </span>
+                  </div>
+                  <span className="nv-card-open">
+                    Open story <MediaIcon name="arrow" size={16} />
+                  </span>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        {!busy && !items.length && (
+          <div className="nv-empty">
+            <MediaIcon name="review" size={40} />
+            <h3>No stories in this view</h3>
+            <p>Try another headline or status, or begin a new article.</p>
+          </div>
+        )}
+        {cursor && (
+          <button
+            disabled={busy}
+            className="btn btn-secondary"
+            onClick={() => void run(() => list(cursor))}
+          >
+            {busy ? "Loading…" : "Load more stories"}
+          </button>
+        )}
+      </div>
     );
   if (!fresh && !record)
     return (
@@ -222,258 +327,563 @@ function NewsEditor({ id }: { id?: string }) {
         <Link to="/admin/news">Back to News</Link>
       </>
     );
-  const readonly = busy || !can("news.write") || record?.status === "archived";
+  const readonly =
+    busy || mediaBusy || !can("news.write") || record?.status === "archived";
+  const activePane = fresh ? "edit" : pane;
+  const stats = articleStats(record?.draft ?? draft);
+  const pendingRevision =
+    record?.status === "published" &&
+    record.draft_revision_id !== record.published_revision_id;
+  const coverChanged =
+    draft.coverMediaVersionId !== (record?.draft.coverMediaVersionId ?? null);
+  const choosePane = (next: string) => {
+    setPane(next);
+    if (next === "history" && !history)
+      void run(async () =>
+        setHistory(await api("/admin/news/" + id + "/history")),
+      );
+  };
   return (
-    <>
+    <div className="news-visual">
       {controls}
-      <div className="news-toolbar">
-        <Link to="/admin/news">← All articles</Link>
+      <div className="nv-library-head">
+        <div>
+          <span className="nv-kicker">
+            <MediaIcon name="review" size={15} /> MGTV · EDITORIAL DESK
+          </span>
+          <h2>{fresh ? "Start your next story" : record.draft.title}</h2>
+        </div>
+        <Link to="/admin/news" className="btn btn-ghost">
+          ← All articles
+        </Link>
+      </div>
+      {!fresh && (
+        <nav className="nv-tabs" aria-label="Article workspace">
+          {[
+            ["overview", "Saved story", "review"],
+            ["edit", "Edit draft", "edit"],
+            ["artwork", "Artwork", "image"],
+            ["publication", "Review & publish", "globe"],
+            ["history", "Activity", "clock"],
+          ].map(([value, label, icon]) => (
+            <button
+              key={value}
+              aria-pressed={activePane === value}
+              onClick={() => choosePane(value)}
+            >
+              <MediaIcon name={icon} size={16} />
+              {label}
+            </button>
+          ))}
+        </nav>
+      )}
+      <div className="nv-save-status" role="status">
+        <ContentStatus status={record?.status ?? "draft"} />
         <span>
-          {record?.status ?? "New draft"} ·{" "}
-          {dirty ? "Unsaved changes" : "Saved"}
+          {mediaBusy
+            ? "Media upload in progress"
+            : dirty
+              ? "Unsaved changes · public story unchanged"
+              : pendingRevision
+                ? "A saved draft is waiting for publication"
+                : fresh
+                  ? "Not created yet"
+                  : "Saved revision"}
         </span>
       </div>
-      <div className="news-editor">
-        <Card>
-          <fieldset
-            disabled={readonly}
-            style={{ border: 0, padding: 0, minWidth: 0 }}
-          >
-            <div className="news-fields">
-              {(
-                [
-                  "title",
-                  "summary",
-                  "category",
-                  "author",
-                  "imageAlt",
-                  "imageCaption",
-                ] as const
-              ).map((k) => (
-                <label key={k}>
-                  {
-                    {
-                      title: "Headline",
-                      summary: "Summary",
-                      category: "Category",
-                      author: "Byline",
-                      imageAlt: "Image alternative text",
-                      imageCaption: "Image caption",
-                    }[k]
-                  }
-                  {k === "summary" ? (
-                    <textarea
-                      className="input"
-                      rows={3}
-                      maxLength={600}
-                      value={draft[k]}
-                      onChange={(e) => field(k, e.target.value)}
-                    />
-                  ) : (
-                    <input
-                      className="input"
-                      maxLength={
-                        k === "title"
-                          ? 180
-                          : k === "category"
-                            ? 80
-                            : k === "author"
-                              ? 160
-                              : k === "imageAlt"
-                                ? 400
-                                : 600
-                      }
-                      value={draft[k]}
-                      onChange={(e) => field(k, e.target.value)}
-                    />
+      {!fresh && activePane === "overview" && (
+        <>
+          <section className="nv-overview">
+            <NewsArtwork record={record} />
+            <div>
+              <span className="nv-kicker">
+                {record.draft.category || "Category to come"}
+              </span>
+              <h2>{record.draft.title}</h2>
+              <p>
+                {record.draft.summary ||
+                  "Add a summary to invite readers into the story."}
+              </p>
+              <div className="nv-facts">
+                <span>
+                  <MediaIcon name="artist" />
+                  {record.draft.author || "Byline to come"}
+                </span>
+                <span>
+                  <MediaIcon name="clock" />
+                  {stats.minutes} min read
+                </span>
+                <span>
+                  <MediaIcon name="review" />
+                  {stats.words} words · {stats.blocks} blocks
+                </span>
+              </div>
+              <p className="nv-help">
+                {pendingRevision
+                  ? "This saved draft differs from the published story. Review and publish when it is ready."
+                  : record.status === "published"
+                    ? "This saved revision is published."
+                    : "This is the saved private revision. Publication is a separate, permission-checked step."}
+              </p>
+              <div className="nv-actions">
+                <button
+                  className="btn btn-primary"
+                  disabled={!can("news.write") || record.status === "archived"}
+                  onClick={() => setPane("edit")}
+                >
+                  <MediaIcon name="edit" size={16} /> Edit draft
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setPane("publication")}
+                >
+                  <MediaIcon name="check" size={16} /> Review publication
+                </button>
+              </div>
+            </div>
+          </section>
+          <ArticleReadingView
+            body={record.draft}
+            label="Saved reading preview"
+          />
+        </>
+      )}
+      <div
+        className="nv-editor-layout"
+        hidden={activePane !== "edit" && activePane !== "artwork"}
+      >
+        <div className="nv-editor-main">
+          <div hidden={activePane !== "edit"}>
+            <div className="nv-step-nav" aria-label="Draft editor sections">
+              {[
+                ["details", "Story details", "edit"],
+                ["body", "Article body", "review"],
+              ].map(([value, label, icon]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={editorStep === value}
+                  onClick={() => setEditorStep(value)}
+                >
+                  <MediaIcon name={icon} size={16} />
+                  {label}
+                </button>
+              ))}
+            </div>
+            <Card>
+              <fieldset
+                disabled={readonly}
+                style={{ border: 0, padding: 0, minWidth: 0 }}
+              >
+                <div className="news-fields" hidden={editorStep !== "details"}>
+                  {(["title", "summary", "category", "author"] as const).map(
+                    (k) => (
+                      <label key={k}>
+                        {
+                          {
+                            title: "Headline",
+                            summary: "Summary",
+                            category: "Category",
+                            author: "Byline",
+                            imageAlt: "Image alternative text",
+                            imageCaption: "Image caption",
+                          }[k]
+                        }
+                        {k === "summary" ? (
+                          <textarea
+                            className="input"
+                            rows={3}
+                            maxLength={600}
+                            value={draft[k]}
+                            onChange={(e) => field(k, e.target.value)}
+                          />
+                        ) : (
+                          <input
+                            className="input"
+                            maxLength={
+                              k === "title"
+                                ? 180
+                                : k === "category"
+                                  ? 80
+                                  : k === "author"
+                                    ? 160
+                                    : k === "imageAlt"
+                                      ? 400
+                                      : 600
+                            }
+                            value={draft[k]}
+                            onChange={(e) => field(k, e.target.value)}
+                          />
+                        )}
+                      </label>
+                    ),
                   )}
+                </div>
+                <div hidden={editorStep !== "body"}>
+                  <div className="nv-section-heading">
+                    <MediaIcon name="review" />
+                    <div>
+                      <h3>Build the story</h3>
+                      <p>
+                        Give each idea space with paragraphs, headings and pull
+                        quotes.
+                      </p>
+                    </div>
+                  </div>
+                  {draft.blocks.map((b, i) => (
+                    <div className="news-block nv-block" key={i}>
+                      <span className="nv-block-number">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <label>
+                        Block {i + 1}
+                        <select
+                          className="input"
+                          value={b.type}
+                          onChange={(e) =>
+                            field(
+                              "blocks",
+                              draft.blocks.map((x, n) =>
+                                n === i ? { ...x, type: e.target.value } : x,
+                              ),
+                            )
+                          }
+                        >
+                          {["paragraph", "heading", "quote"].map((t) => (
+                            <option key={t}>{t}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Text
+                        <textarea
+                          className="input"
+                          rows={b.type === "paragraph" ? 5 : 2}
+                          maxLength={6000}
+                          value={b.text}
+                          onChange={(e) =>
+                            field(
+                              "blocks",
+                              draft.blocks.map((x, n) =>
+                                n === i ? { ...x, text: e.target.value } : x,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                      <div className="news-toolbar">
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={!i}
+                          onClick={() => {
+                            const a = [...draft.blocks];
+                            [a[i - 1], a[i]] = [a[i], a[i - 1]];
+                            field("blocks", a);
+                          }}
+                        >
+                          <span className="nv-move-up">
+                            <MediaIcon name="arrow" size={16} />
+                          </span>
+                          <span>Move up</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={i === draft.blocks.length - 1}
+                          onClick={() => {
+                            const a = [...draft.blocks];
+                            [a[i + 1], a[i]] = [a[i], a[i + 1]];
+                            field("blocks", a);
+                          }}
+                        >
+                          <span className="nv-move-down">
+                            <MediaIcon name="arrow" size={16} />
+                          </span>
+                          <span>Move down</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() =>
+                            field(
+                              "blocks",
+                              draft.blocks.filter((_, n) => i !== n),
+                            )
+                          }
+                        >
+                          <MediaIcon name="trash" size={16} />
+                          <span>Remove block</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={draft.blocks.length >= 150}
+                    onClick={() =>
+                      field("blocks", [
+                        ...draft.blocks,
+                        { type: "paragraph", text: "" },
+                      ])
+                    }
+                  >
+                    <MediaIcon name="plus" size={16} /> Add text block
+                  </button>
+                </div>
+              </fieldset>
+            </Card>
+          </div>
+          <div hidden={activePane !== "artwork"}>
+            <Card>
+              <div className="nv-section-heading">
+                <MediaIcon name="image" />
+                <div>
+                  <h3>Give the story a first impression</h3>
+                  <p>
+                    One strong image, an accessible description and a useful
+                    caption.
+                  </p>
+                </div>
+              </div>
+              <div className="nv-selected-cover">
+                <NewsArtwork record={record} draft={draft} />
+              </div>
+              <p>
+                Choose an image from your computer. Save the draft to preview
+                the new image.
+              </p>
+              <MediaAttachment
+                key={id}
+                label="Story image"
+                kind="image"
+                value={draft.coverMediaVersionId}
+                disabled={readonly}
+                canRead={!!can("media.read")}
+                canUpload={!!can("media.upload")}
+                onBusyChange={setMediaBusy}
+                onChange={(v) => field("coverMediaVersionId", v)}
+              />
+            </Card>
+            <div className="news-fields nv-image-fields">
+              {(["imageAlt", "imageCaption"] as const).map((k) => (
+                <label key={k}>
+                  {k === "imageAlt"
+                    ? "Image alternative text"
+                    : "Image caption"}
+                  <input
+                    className="input"
+                    value={draft[k]}
+                    maxLength={k === "imageAlt" ? 400 : 600}
+                    disabled={readonly}
+                    onChange={(e) => field(k, e.target.value)}
+                  />
                 </label>
               ))}
             </div>
-            <h3>Article body</h3>
-            {draft.blocks.map((b, i) => (
-              <div className="news-block" key={i}>
-                <label>
-                  Block {i + 1}
-                  <select
-                    className="input"
-                    value={b.type}
-                    onChange={(e) =>
-                      field(
-                        "blocks",
-                        draft.blocks.map((x, n) =>
-                          n === i ? { ...x, type: e.target.value } : x,
-                        ),
-                      )
-                    }
-                  >
-                    {["paragraph", "heading", "quote"].map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Text
-                  <textarea
-                    className="input"
-                    rows={b.type === "paragraph" ? 5 : 2}
-                    maxLength={6000}
-                    value={b.text}
-                    onChange={(e) =>
-                      field(
-                        "blocks",
-                        draft.blocks.map((x, n) =>
-                          n === i ? { ...x, text: e.target.value } : x,
-                        ),
-                      )
-                    }
-                  />
-                </label>
-                <div className="news-toolbar">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled={!i}
-                    onClick={() => {
-                      const a = [...draft.blocks];
-                      [a[i - 1], a[i]] = [a[i], a[i - 1]];
-                      field("blocks", a);
-                    }}
-                  >
-                    Move up
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled={i === draft.blocks.length - 1}
-                    onClick={() => {
-                      const a = [...draft.blocks];
-                      [a[i + 1], a[i]] = [a[i], a[i + 1]];
-                      field("blocks", a);
-                    }}
-                  >
-                    Move down
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={() =>
-                      field(
-                        "blocks",
-                        draft.blocks.filter((_, n) => i !== n),
-                      )
-                    }
-                  >
-                    Remove block
-                  </button>
-                </div>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="btn btn-secondary"
-              disabled={draft.blocks.length >= 150}
-              onClick={() =>
-                field("blocks", [
-                  ...draft.blocks,
-                  { type: "paragraph", text: "" },
-                ])
-              }
-            >
-              Add text block
-            </button>
-          </fieldset>
-        </Card>
-        <div>
-          <Card>
-            <h3>Story image</h3>
-            {record?.draft.coverMediaVersionId && (
-              <img
-                src={"/api/v1/admin/news/" + id + "/cover?v=" + record.version}
-                alt={draft.imageAlt}
-                style={{ width: "100%", borderRadius: 8 }}
-              />
-            )}
-            <p>
-              Choose an image from your computer. Save the draft to preview the
-              new image.
-            </p>
-            <MediaAttachment key={id} label="Story image" kind="image" value={draft.coverMediaVersionId} disabled={readonly} canRead={!!can("media.read")} canUpload={!!can("media.upload")} onBusyChange={setBusy} onChange={v=>field("coverMediaVersionId",v)}/>
-          </Card>
-          <Card>
-            <h3>Publication</h3>
-            <p>
-              Draft edits remain private until this saved revision is published.
-            </p>
-            <div className="news-actions">
+          </div>
+          <div className="nv-edit-footer">
+            <span>
+              {dirty
+                ? "Changes are not saved yet."
+                : fresh
+                  ? "Create the draft when you are ready."
+                  : "No unsaved changes."}
+            </span>
+            <div className="nv-actions">
               <button
                 className="btn btn-primary"
                 disabled={readonly || (!dirty && !fresh)}
                 onClick={() => void run(save)}
               >
-                Save draft
+                <MediaIcon name="check" size={16} />
+                {fresh ? "Create draft" : "Save draft"}
               </button>
               <button
                 className="btn btn-secondary"
                 onClick={() => setPreview(true)}
               >
-                Preview text
+                <MediaIcon name="review" size={16} /> Preview draft text
               </button>
-              {record && (
-                <>
-                  <button
-                    className="btn btn-secondary"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () =>
-                        setHistory(await api("/admin/news/" + id + "/history")),
-                      )
-                    }
-                  >
-                    History
-                  </button>
-                  {["publish", "unpublish", "archive", "restore"]
-                    .filter((a) =>
-                      a === "restore"
-                        ? record.status === "archived"
-                        : a === "publish"
-                          ? record.status !== "archived"
-                          : a === "unpublish"
-                            ? record.status === "published"
-                            : record.status !== "archived",
-                    )
-                    .map((a) => (
-                      <button
-                        key={a}
-                        className="btn btn-secondary"
-                        disabled={
-                          busy ||
-                          dirty ||
-                          !can(
-                            a === "publish"
-                              ? "news.publish"
-                              : a === "unpublish"
-                                ? "news.unpublish"
-                                : "news.write",
-                          ) ||
-                          (a === "archive" &&
-                            record.status === "published" &&
-                            !can("news.unpublish"))
-                        }
-                        onClick={() => {
-                          setAction(a);
-                          setReason("");
-                        }}
-                      >
-                        {a.charAt(0).toUpperCase() + a.slice(1)}
-                      </button>
-                    ))}
-                </>
+              {!fresh && (
+                <button
+                  className="btn btn-ghost"
+                  disabled={busy || mediaBusy || !dirty}
+                  onClick={() => {
+                    setDraft(record.draft);
+                    setNotice("Unsaved changes discarded.");
+                  }}
+                >
+                  Discard changes
+                </button>
               )}
             </div>
-          </Card>
+          </div>
         </div>
+        <aside className="nv-editor-guide">
+          <NewsArtwork record={record} draft={draft} />
+          <span className="nv-kicker">YOUR STORY AT A GLANCE</span>
+          <h3>{draft.title || "Your headline goes here"}</h3>
+          <p>
+            {draft.summary ||
+              "A short summary helps readers decide where to begin."}
+          </p>
+          <div className="nv-facts">
+            <span>
+              <MediaIcon name="clock" size={16} />
+              {articleStats(draft).minutes} min read
+            </span>
+            <span>
+              <MediaIcon name="review" size={16} />
+              {articleStats(draft).words} words
+            </span>
+          </div>
+          <p className="nv-help">
+            {fresh
+              ? "Create the draft first, then choose its cover in Artwork."
+              : coverChanged
+                ? "Save the draft to preview the replacement cover. The current saved image remains unchanged."
+                : "Preview the writing as you work. Save first, then review publication separately."}
+          </p>
+        </aside>
       </div>
+      <section hidden={activePane !== "publication"}>
+        <Card>
+          <div className="nv-section-heading">
+            <MediaIcon name="check" />
+            <div>
+              <h3>Ready for readers?</h3>
+              <p>
+                Check the saved article before choosing a publication action.
+              </p>
+            </div>
+          </div>
+          <ul className="nv-checklist">
+            {[
+              ["Headline", !!record?.draft.title.trim()],
+              [
+                "Summary & category",
+                !!record?.draft.summary.trim() &&
+                  !!record?.draft.category.trim(),
+              ],
+              ["Byline", !!record?.draft.author.trim()],
+              [
+                "Cover & alternative text",
+                !!record?.draft.coverMediaVersionId &&
+                  !!record?.draft.imageAlt.trim(),
+              ],
+              [
+                "Article paragraph",
+                !!record?.draft.blocks.some(
+                  (b: any) => b.type === "paragraph" && b.text.trim(),
+                ),
+              ],
+            ].map(([label, done]) => (
+              <li key={String(label)}>
+                <MediaIcon name={done ? "check" : "edit"} size={18} />
+                <span>{label}</span>
+                <small>{done ? "Added" : "To complete"}</small>
+              </li>
+            ))}
+          </ul>
+          <p>
+            Draft edits remain private until this saved revision is published.
+          </p>
+          <div className="news-actions">
+            {record && (
+              <>
+                {["publish", "unpublish", "archive", "restore"]
+                  .filter((a) =>
+                    a === "restore"
+                      ? record.status === "archived"
+                      : a === "publish"
+                        ? record.status !== "archived"
+                        : a === "unpublish"
+                          ? record.status === "published"
+                          : record.status !== "archived",
+                  )
+                  .map((a) => (
+                    <button
+                      key={a}
+                      className="btn btn-secondary"
+                      disabled={
+                        busy ||
+                        mediaBusy ||
+                        dirty ||
+                        !can(
+                          a === "publish"
+                            ? "news.publish"
+                            : a === "unpublish"
+                              ? "news.unpublish"
+                              : "news.write",
+                        ) ||
+                        (a === "archive" &&
+                          record.status === "published" &&
+                          !can("news.unpublish"))
+                      }
+                      onClick={() => {
+                        setAction(a);
+                        setReason("");
+                      }}
+                    >
+                      {a.charAt(0).toUpperCase() + a.slice(1)}
+                    </button>
+                  ))}
+              </>
+            )}
+          </div>
+        </Card>
+      </section>
+      {activePane === "history" && (
+        <section className="nv-history">
+          <div className="nv-section-heading">
+            <MediaIcon name="clock" />
+            <div>
+              <h3>How this story took shape</h3>
+              <p>Real saved activity and immutable revisions.</p>
+            </div>
+          </div>
+          {!history ? (
+            error ? (
+              <button
+                className="btn btn-secondary"
+                disabled={busy}
+                onClick={() => choosePane("history")}
+              >
+                Retry story history
+              </button>
+            ) : (
+              <LoadingState label="Loading story history…" variant="cards" />
+            )
+          ) : (
+            <>
+              <ol>
+                {history.items.map((h: any) => (
+                  <li key={h.id}>
+                    <span className="nv-history-icon">
+                      <MediaIcon
+                        name={h.action.includes("publish") ? "globe" : "edit"}
+                        size={18}
+                      />
+                    </span>
+                    <div>
+                      <strong>
+                        {h.action.replace(/^news\./, "").replace(/_/g, " ")}
+                      </strong>
+                      <time>{new Date(h.created_at).toLocaleString()}</time>
+                      {h.details?.reason && <p>{h.details.reason}</p>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <p className="nv-help">
+                {history.revisions?.length ?? 0} immutable saved revisions
+              </p>
+            </>
+          )}
+        </section>
+      )}
       {action && (
         <Modal
           title={action + " article"}
@@ -495,12 +905,18 @@ function NewsEditor({ id }: { id?: string }) {
             This applies to the saved revision. Restoring an archived article
             never republishes it.
           </p>
+          <div className="nv-review-summary">
+            <MediaIcon name="review" />
+            <strong>{record?.draft.title}</strong>
+            <ContentStatus status={record?.status ?? "draft"} />
+          </div>
           <label>
             Reason
             <textarea
               className="input"
               value={reason}
               maxLength={1000}
+              disabled={busy}
               onChange={(e) => setReason(e.target.value)}
             />
           </label>
@@ -508,36 +924,9 @@ function NewsEditor({ id }: { id?: string }) {
       )}
       {preview && (
         <Modal title="Article text preview" onClose={() => setPreview(false)}>
-          <h2>{draft.title}</h2>
-          <p>{draft.summary}</p>
-          <p>
-            {draft.category} · By {draft.author}
-          </p>
-          {draft.blocks.map((b, i) =>
-            b.type === "heading" ? (
-              <h3 key={i}>{b.text}</h3>
-            ) : b.type === "quote" ? (
-              <blockquote key={i}>{b.text}</blockquote>
-            ) : (
-              <p key={i} style={{ whiteSpace: "pre-wrap" }}>
-                {b.text}
-              </p>
-            ),
-          )}
+          <ArticleReadingView body={draft} label="Unsaved draft text preview" />
         </Modal>
       )}
-      {history && (
-        <Modal title="Article history" onClose={() => setHistory(null)}>
-          {history.items.map((h: any) => (
-            <p key={h.id}>
-              {h.action} · {new Date(h.created_at).toLocaleString()}
-              <br />
-              {h.details?.reason}
-            </p>
-          ))}
-          <p>{history.revisions?.length ?? 0} immutable saved revisions</p>
-        </Modal>
-      )}
-    </>
+    </div>
   );
 }
