@@ -1,8 +1,18 @@
 import LoadingState from "../components/LoadingState";
 import React, { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
-import { Card, Modal, EmptyState, Badge } from "../ui";
+import { Modal, EmptyState, Badge } from "../ui";
+import MediaIcon from "../components/MediaIcon";
+import DiscoveryRecordCard, {
+  DiscoveryMark,
+  DiscoveryContentCard,
+  termLabel,
+  contentLabel,
+  contentIcon,
+} from "../components/DiscoveryVisual";
+import "../components/DiscoveryVisual.css";
 import StaffAuth from "./StaffAuth";
+import EpisodeSelector from "../components/EpisodeSelector";
 import { useDirtyGuard } from "../router";
 const tabs = [
   { kind: "category", label: "Categories" },
@@ -26,6 +36,7 @@ const kinds = [
     "lifestyle",
   ],
   paths: any = {
+    podcast: "podcasts",
     movie: "movies",
     show: "shows",
     episode: "episodes",
@@ -68,11 +79,13 @@ export default function ConnectedDiscovery() {
     [pickSearch, setPickSearch] = useState(""),
     [pickQuery, setPickQuery] = useState(""),
     [pickCursor, setPickCursor] = useState<string | null>(null),
-    [reason, setReason] = useState("");
+    [reason, setReason] = useState(""),
+    [pane, setPane] = useState("overview");
   const requestKey = useRef<{ body: string; key: string } | null>(null),
     errorRef = useRef<HTMLDivElement>(null),
     serial = useRef(0),
-    dirty = useRef(false);
+    dirty = useRef(false),
+    pickerSerial = useRef(0);
   dirty.current = !!editing || !!assigning;
   useDirtyGuard(() => dirty.current);
   const can = (p: string) => session?.permissions.includes(p);
@@ -145,6 +158,7 @@ export default function ConnectedDiscovery() {
       ),
     });
     setEditing(r);
+    setPane("overview");
     setHistory(
       (await api("/admin/discovery/" + kind + "/" + r.id + "/history")).items,
     );
@@ -174,6 +188,7 @@ export default function ConnectedDiscovery() {
   }
   async function openTargets(row: any) {
     const r = await api("/admin/discovery/" + kind + "/" + row.id);
+    setPickerKind("movie");
     setAssigning(r);
     setTargets(r.targets);
     setReason("");
@@ -182,7 +197,13 @@ export default function ConnectedDiscovery() {
   }
   useEffect(() => {
     if (!assigning) return;
+    if (pickerKind === "episode") {
+      setOptions([]);
+      setPickCursor(null);
+      return;
+    }
     let active = true;
+    pickerSerial.current++;
     setOptions([]);
     setPickCursor(null);
     void run(async () => {
@@ -199,10 +220,13 @@ export default function ConnectedDiscovery() {
     });
     return () => {
       active = false;
+      pickerSerial.current++;
     };
   }, [assigning?.id, pickerKind, pickQuery]);
   async function moreOptions() {
+    const generation = pickerSerial.current;
     const parameter = [
+      "podcast",
       "news",
       "lifestyle",
       "artist",
@@ -222,14 +246,29 @@ export default function ConnectedDiscovery() {
         "=" +
         pickCursor,
     );
-    setOptions((old) => [...old, ...p.items]);
+    if (generation !== pickerSerial.current) return;
+    setOptions((old) => [
+      ...old,
+      ...p.items.filter((r: any) => !old.some((x) => x.id === r.id)),
+    ]);
     setPickCursor(p.nextCursor);
   }
   function toggle(r: any) {
+    if (
+      !targets.some((t) => t.kind === pickerKind && t.id === r.id) &&
+      targets.length >= 100
+    ) {
+      setError(
+        "You can select up to 100 records. Remove one before adding another.",
+      );
+      return;
+    }
+    setError("");
     const ref = {
       kind: pickerKind,
       id: r.id,
-      title: r.draft?.title ?? r.body?.title ?? r.title,
+      title:
+        r.draft?.title ?? r.draft?.name ?? r.body?.title ?? r.title ?? r.name,
     };
     setTargets((old) =>
       old.some((t) => t.kind === ref.kind && t.id === ref.id)
@@ -264,7 +303,7 @@ export default function ConnectedDiscovery() {
       <div className="page-pad">
         <LoadingState
           label={<>Loading Categories & Discovery…</>}
-          variant="table"
+          variant="cards"
         />
       </div>
     );
@@ -305,6 +344,14 @@ export default function ConnectedDiscovery() {
         </div>
       )}
       {notice && <p role="status">{notice}</p>}
+      <header className="dv-intro">
+        <span className="dv-eyebrow">MGTV · FIND YOUR NEXT FAVOURITE</span>
+        <h2>Every story, easier to find.</h2>
+        <p>
+          Build the pathways between your audience and the stories, sounds and
+          moments they love.
+        </p>
+      </header>
       <div
         className="discovery-tabs"
         role="tablist"
@@ -330,6 +377,19 @@ export default function ConnectedDiscovery() {
               setQ("");
             }}
           >
+            <MediaIcon
+              name={
+                t.kind === "classification"
+                  ? "lock"
+                  : t.kind === "region"
+                    ? "globe"
+                    : t.kind === "category"
+                      ? "grid"
+                      : t.kind === "genre"
+                        ? "film"
+                        : "link"
+              }
+            />
             {t.label}
           </button>
         ))}
@@ -384,7 +444,22 @@ export default function ConnectedDiscovery() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <button className="btn">Search</button>
+          <button className="btn" disabled={busy}>
+            Search
+          </button>
+          {search && (
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => {
+                setQ("");
+                setSearch("");
+              }}
+            >
+              Clear search
+            </button>
+          )}
         </form>
         {kind !== "classification" && (
           <button
@@ -394,96 +469,49 @@ export default function ConnectedDiscovery() {
               setEditing({ id: null });
               setBody(blank());
               setHistory([]);
+              setPane("edit");
             }}
           >
-            Add {kind}
+            <MediaIcon name="plus" size={17} /> Add{" "}
+            {termLabel(kind).toLowerCase()}
           </button>
         )}
       </div>
-      <Card>
-        <div className="scroll-x">
-          <table
-            className="data-table"
-            style={{ width: "100%", borderCollapse: "collapse" }}
-          >
-            <thead>
-              <tr>
-                {[
-                  "Name",
-                  "Code",
-                  "Published references",
-                  "Status",
-                  "Order",
-                  "Actions",
-                ].map((x) => (
-                  <th
-                    key={x}
-                    style={{
-                      textAlign: "left",
-                      padding: 12,
-                      color: "var(--text-muted)",
-                    }}
-                  >
-                    {x}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} style={{ borderTop: "1px solid var(--border)" }}>
-                  <td style={{ padding: 12 }}>
-                    <strong>{r.name}</strong>
-                    <small
-                      style={{
-                        display: "block",
-                        color: "var(--text-muted)",
-                        maxWidth: 380,
-                      }}
-                    >
-                      {r.description}
-                    </small>
-                  </td>
-                  <td style={{ padding: 12 }}>{r.code}</td>
-                  <td style={{ padding: 12 }}>{r.items ?? "—"}</td>
-                  <td style={{ padding: 12 }}>
-                    <Badge color={r.active ? "#34d399" : "#9ca3af"}>
-                      {r.active ? "Active" : "Inactive"}
-                    </Badge>
-                  </td>
-                  <td style={{ padding: 12 }}>{r.position}</td>
-                  <td style={{ padding: 12 }}>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        className="btn btn-sm"
-                        disabled={busy}
-                        onClick={() => void run(() => edit(r))}
-                      >
-                        Edit
-                      </button>
-                      {["tag", "genre"].includes(kind) && (
-                        <button
-                          className="btn btn-sm"
-                          disabled={busy || !can("discovery.write")}
-                          onClick={() => void run(() => openTargets(r))}
-                        >
-                          Content
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {!rows.length && (
-          <EmptyState
-            title="No records found"
-            body="Try a different search or add a discovery record."
+      <div className="dv-results" role="status">
+        <span>
+          <strong>{rows.length}</strong> {termLabel(kind, true).toLowerCase()}{" "}
+          loaded{cursor ? " · more available" : ""}
+        </span>
+        <span>
+          <MediaIcon name="globe" size={15} /> Published references, before
+          profile filters
+        </span>
+      </div>
+      <div
+        className="dv-record-grid"
+        aria-label={termLabel(kind, true)}
+        aria-busy={busy}
+      >
+        {rows.map((r) => (
+          <DiscoveryRecordCard
+            key={r.id}
+            record={r}
+            busy={busy}
+            onOpen={() => void run(() => edit(r))}
+            onAssign={
+              ["tag", "genre"].includes(kind) && can("discovery.write")
+                ? () => void run(() => openTargets(r))
+                : undefined
+            }
           />
-        )}
-      </Card>
+        ))}
+      </div>
+      {!rows.length && !busy && (
+        <EmptyState
+          title="No records found"
+          body="Try a different search or add a discovery record."
+        />
+      )}
       <p style={{ color: "var(--text-muted)", fontSize: 12 }}>
         Reference counts reflect published records before availability and
         selected-profile checks. Search returns only currently available
@@ -500,12 +528,14 @@ export default function ConnectedDiscovery() {
       )}
       {editing && (
         <Modal
-          title={(editing.id ? "Edit " : "Add ") + kind}
+          title={
+            editing.id ? editing.name : "Add " + termLabel(kind).toLowerCase()
+          }
           onClose={() => {
             if (busy) return;
             setEditing(null);
           }}
-          width={620}
+          width={820}
           footer={
             <>
               <button
@@ -515,20 +545,23 @@ export default function ConnectedDiscovery() {
               >
                 Cancel
               </button>
-              <button
-                className="btn btn-primary"
-                disabled={
-                  busy ||
-                  !body.reason.trim() ||
-                  !body.name.trim() ||
-                  !body.code.trim() ||
-                  !can("discovery.write") ||
-                  ((editing.active || body.active) && !can("discovery.publish"))
-                }
-                onClick={() => void run(save)}
-              >
-                Save record
-              </button>
+              {pane === "edit" && (
+                <button
+                  className="btn btn-primary"
+                  disabled={
+                    busy ||
+                    !body.reason.trim() ||
+                    !body.name.trim() ||
+                    !body.code.trim() ||
+                    !can("discovery.write") ||
+                    ((editing.active || body.active) &&
+                      !can("discovery.publish"))
+                  }
+                  onClick={() => void run(save)}
+                >
+                  Save record
+                </button>
+              )}
             </>
           }
         >
@@ -537,121 +570,245 @@ export default function ConnectedDiscovery() {
               {error}
             </div>
           )}
-          {(editing.active || body.active) && !can("discovery.publish") && (
-            <p role="note">
-              Changing an active discovery record requires explicit
-              discovery.publish permission.
-            </p>
-          )}
-          <fieldset
-            disabled={busy || !can("discovery.write")}
-            style={{ border: 0, padding: 0, display: "grid", gap: 14 }}
-          >
-            <label>
-              Name
-              <input
-                className="input"
-                maxLength={120}
-                value={body.name}
-                onChange={(e) => setBody({ ...body, name: e.target.value })}
-              />
-            </label>
-            <label>
-              Code
-              <input
-                className="input"
-                maxLength={80}
-                disabled={!!editing.id}
-                value={body.code}
-                onChange={(e) => setBody({ ...body, code: e.target.value })}
-              />
-            </label>
-            <label>
-              Description
-              <textarea
-                className="input"
-                maxLength={600}
-                value={body.description}
-                onChange={(e) =>
-                  setBody({ ...body, description: e.target.value })
-                }
-              />
-            </label>
-            <label>
-              Display order
-              <input
-                className="input"
-                type="number"
-                min={0}
-                max={10000}
-                value={body.position}
-                onChange={(e) =>
-                  setBody({ ...body, position: Number(e.target.value) })
-                }
-              />
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                disabled={kind === "classification"}
-                checked={body.active}
-                onChange={(e) => setBody({ ...body, active: e.target.checked })}
-              />{" "}
-              Active
-            </label>
-            {kind === "category" && (
-              <fieldset
-                style={{ border: "1px solid var(--border)", padding: 12 }}
-              >
-                <legend>Included content types</legend>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2,minmax(0,1fr))",
-                    gap: 8,
-                  }}
-                >
-                  {kinds.map((k) => (
-                    <label key={k}>
-                      <input
-                        type="checkbox"
-                        checked={body.contentKinds.includes(k)}
-                        onChange={(e) =>
-                          setBody({
-                            ...body,
-                            contentKinds: e.target.checked
-                              ? [...body.contentKinds, k]
-                              : body.contentKinds.filter((x) => x !== k),
-                          })
-                        }
-                      />{" "}
-                      {k}
-                    </label>
-                  ))}
+          {editing.id && (
+            <>
+              <div className="dv-detail-head">
+                <DiscoveryMark kind={kind} code={editing.code} />
+                <div>
+                  <span className="dv-eyebrow">
+                    {termLabel(kind)} · SAVED VERSION {editing.version}
+                  </span>
+                  <h3>{editing.name}</h3>
+                  <Badge color={editing.active ? "#34d399" : "#9ca3af"}>
+                    {editing.active ? "Active" : "Inactive"}
+                  </Badge>
                 </div>
+              </div>
+              <nav className="dv-pane-nav" aria-label="Record view">
+                {["overview", "edit", "activity"].map((view) => (
+                  <button
+                    className="btn"
+                    aria-pressed={pane === view}
+                    disabled={busy}
+                    key={view}
+                    onClick={() => setPane(view)}
+                  >
+                    <MediaIcon
+                      name={
+                        view === "overview"
+                          ? "grid"
+                          : view === "edit"
+                            ? "edit"
+                            : "clock"
+                      }
+                    />
+                    {view === "edit"
+                      ? "Edit details"
+                      : view === "activity"
+                        ? "Activity"
+                        : "Overview"}
+                  </button>
+                ))}
+              </nav>
+              {pane === "overview" && (
+                <section className="dv-overview">
+                  <p>
+                    {editing.description ||
+                      "Add a description to give this discovery label more context."}
+                  </p>
+                  <div className="dv-facts">
+                    <div>
+                      <MediaIcon name="link" />
+                      <strong>{editing.items ?? 0}</strong>
+                      <span>Published references</span>
+                    </div>
+                    <div>
+                      <MediaIcon name="grid" />
+                      <strong>{editing.position}</strong>
+                      <span>Display order</span>
+                    </div>
+                    <div>
+                      <MediaIcon name="lock" />
+                      <strong>
+                        {editing.protected ? "Protected" : "Managed"}
+                      </strong>
+                      <span>
+                        {editing.protected
+                          ? "Age policy stays fixed"
+                          : "Explicit access required"}
+                      </span>
+                    </div>
+                  </div>
+                  {editing.contentKinds?.length > 0 && (
+                    <>
+                      <h4>Included content</h4>
+                      <div className="dv-chips">
+                        {editing.contentKinds.map((k: string) => (
+                          <span key={k}>{contentLabel(k)}</span>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {["tag", "genre"].includes(kind) && (
+                    <button
+                      className="btn btn-primary"
+                      disabled={busy || !can("discovery.write")}
+                      onClick={() => {
+                        setEditing(null);
+                        void run(() => openTargets(editing));
+                      }}
+                    >
+                      <MediaIcon name="link" />
+                      Arrange associated content
+                    </button>
+                  )}
+                </section>
+              )}
+            </>
+          )}
+          {pane === "edit" && (
+            <>
+              {(editing.active || body.active) && !can("discovery.publish") && (
+                <p role="note">
+                  Changing an active discovery record requires explicit
+                  discovery.publish permission.
+                </p>
+              )}
+              <fieldset
+                className="dv-editor"
+                disabled={busy || !can("discovery.write")}
+                style={{ border: 0, padding: 0, display: "grid", gap: 14 }}
+              >
+                <label>
+                  Name
+                  <input
+                    className="input"
+                    maxLength={120}
+                    value={body.name}
+                    onChange={(e) => setBody({ ...body, name: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Code
+                  <input
+                    className="input"
+                    maxLength={80}
+                    disabled={!!editing.id}
+                    value={body.code}
+                    onChange={(e) => setBody({ ...body, code: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Description
+                  <textarea
+                    className="input"
+                    maxLength={600}
+                    value={body.description}
+                    onChange={(e) =>
+                      setBody({ ...body, description: e.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  Display order
+                  <input
+                    className="input"
+                    type="number"
+                    min={0}
+                    max={10000}
+                    value={body.position}
+                    onChange={(e) =>
+                      setBody({ ...body, position: Number(e.target.value) })
+                    }
+                  />
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    disabled={kind === "classification"}
+                    checked={body.active}
+                    onChange={(e) =>
+                      setBody({ ...body, active: e.target.checked })
+                    }
+                  />{" "}
+                  Active
+                </label>
+                {kind === "category" && (
+                  <fieldset
+                    style={{ border: "1px solid var(--border)", padding: 12 }}
+                  >
+                    <legend>Included content types</legend>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+                        gap: 8,
+                      }}
+                    >
+                      {kinds.map((k) => (
+                        <label key={k}>
+                          <input
+                            type="checkbox"
+                            checked={body.contentKinds.includes(k)}
+                            onChange={(e) =>
+                              setBody({
+                                ...body,
+                                contentKinds: e.target.checked
+                                  ? [...body.contentKinds, k]
+                                  : body.contentKinds.filter((x) => x !== k),
+                              })
+                            }
+                          />{" "}
+                          <MediaIcon name={contentIcon(k)} size={16} />
+                          {contentLabel(k)}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
+                <label>
+                  Reason for change
+                  <textarea
+                    className="input"
+                    maxLength={1000}
+                    value={body.reason}
+                    onChange={(e) =>
+                      setBody({ ...body, reason: e.target.value })
+                    }
+                  />
+                </label>
               </fieldset>
-            )}
-            <label>
-              Reason for change
-              <textarea
-                className="input"
-                maxLength={1000}
-                value={body.reason}
-                onChange={(e) => setBody({ ...body, reason: e.target.value })}
-              />
-            </label>
-          </fieldset>
-          <h3 style={{ marginTop: 20 }}>Recent activity</h3>
-          <ul>
-            {history.map((h) => (
-              <li key={h.id}>
-                {h.action} · {h.details.reason}
-                <small style={{ display: "block" }}>
-                  {new Date(h.created_at).toLocaleString()}
-                </small>
-              </li>
-            ))}
-          </ul>
+            </>
+          )}
+          {pane === "activity" && (
+            <>
+              <h3>Recent activity</h3>
+              {!history.length && (
+                <EmptyState
+                  title="No activity recorded"
+                  body="Saved changes appear here with their audit reasons."
+                />
+              )}
+              <ul className="dv-history">
+                {history.map((h) => (
+                  <li key={h.id}>
+                    <MediaIcon name="clock" size={18} />
+                    <div>
+                      <strong>
+                        {h.action
+                          .replaceAll("discovery.", "")
+                          .replaceAll("_", " ")}
+                      </strong>
+                      <p>{h.details.reason}</p>
+                      <small style={{ display: "block" }}>
+                        {new Date(h.created_at).toLocaleString()}
+                      </small>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </Modal>
       )}
       {assigning && (
@@ -663,7 +820,7 @@ export default function ConnectedDiscovery() {
             assigning.name +
             "”"
           }
-          width={720}
+          width={1040}
           onClose={() => {
             if (!busy) setAssigning(null);
           }}
@@ -715,83 +872,84 @@ export default function ConnectedDiscovery() {
                 onChange={(e) => setPickerKind(e.target.value)}
               >
                 {kinds.map((k) => (
-                  <option key={k}>{k}</option>
+                  <option key={k} value={k}>
+                    {contentLabel(k)}
+                  </option>
                 ))}
               </select>
             </label>
-            <form
-              style={{ display: "flex", gap: 8 }}
-              onSubmit={(e) => {
-                e.preventDefault();
-                setPickQuery(pickSearch.trim());
-              }}
-            >
-              <input
-                aria-label="Search tag content"
-                className="input"
-                value={pickSearch}
-                onChange={(e) => setPickSearch(e.target.value)}
-              />
-              <button className="btn">Search</button>
-            </form>
-            <p>{targets.length} selected</p>
-            <ul style={{ padding: 0, listStyle: "none" }}>
-              {targets.map((t) => (
-                <li
-                  key={t.kind + t.id}
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    alignItems: "center",
-                    marginBottom: 8,
-                  }}
-                >
-                  <span style={{ flex: 1 }}>
-                    {t.title ?? t.id} · {t.kind}
-                  </span>
-                  <button
-                    className="btn btn-sm"
-                    disabled={busy}
-                    onClick={() =>
-                      setTargets(
-                        targets.filter(
-                          (x) => x.kind !== t.kind || x.id !== t.id,
-                        ),
-                      )
-                    }
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <div style={{ display: "grid", gap: 8 }}>
+            {pickerKind === "episode" ? (
+              <EpisodeSelector onRows={setOptions} onError={setError} />
+            ) : (
+              <form
+                style={{ display: "flex", gap: 8 }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setPickQuery(pickSearch.trim());
+                }}
+              >
+                <input
+                  aria-label="Search associated content"
+                  className="input"
+                  value={pickSearch}
+                  onChange={(e) => setPickSearch(e.target.value)}
+                />
+                <button className="btn">Search</button>
+              </form>
+            )}
+            <div className="dv-results" role="status">
+              <strong>{targets.length} / 100 selected</strong>
+              <span>{options.length} records loaded</span>
+            </div>
+            <details className="dv-selected">
+              <summary>Review selected content ({targets.length})</summary>
+              <div className="dv-selected-list">
+                {targets.map((t) => (
+                  <div key={t.kind + t.id}>
+                    <MediaIcon name={contentIcon(t.kind)} size={18} />
+                    <span>
+                      <strong>{t.title ?? t.id}</strong>
+                      <small>{contentLabel(t.kind)}</small>
+                    </span>
+                    <button
+                      className="btn btn-sm"
+                      aria-label={"Remove " + (t.title ?? t.id)}
+                      disabled={busy}
+                      onClick={() => {
+                        setTargets(
+                          targets.filter(
+                            (x) => x.kind !== t.kind || x.id !== t.id,
+                          ),
+                        );
+                        setError("");
+                      }}
+                    >
+                      <MediaIcon name="minus" size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </details>
+            <div className="dv-content-grid" aria-busy={busy}>
               {options.map((r) => (
-                <label
+                <DiscoveryContentCard
                   key={r.id}
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    padding: 10,
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    disabled={busy}
-                    checked={targets.some(
-                      (t) => t.kind === pickerKind && t.id === r.id,
-                    )}
-                    onChange={() => toggle(r)}
-                  />
-                  <span style={{ flex: 1 }}>
-                    {r.draft?.title ?? r.body?.title ?? r.title}
-                  </span>
-                  <small>{r.status}</small>
-                </label>
+                  record={r}
+                  kind={pickerKind}
+                  checked={targets.some(
+                    (t) => t.kind === pickerKind && t.id === r.id,
+                  )}
+                  disabled={busy}
+                  onToggle={() => toggle(r)}
+                />
               ))}
             </div>
+            {!options.length && !busy && pickerKind !== "episode" && (
+              <EmptyState
+                title="No selectable content"
+                body="Try another search or content type. Access to content is checked separately."
+              />
+            )}
             {pickCursor && (
               <button
                 className="btn"

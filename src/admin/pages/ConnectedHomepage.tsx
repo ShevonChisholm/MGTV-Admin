@@ -5,6 +5,7 @@ import { useRouter, useDirtyGuard } from "../router";
 import { Card, Modal, EmptyState, Badge } from "../ui";
 import { PageActions } from "../components/PageHeader";
 import StaffAuth from "./StaffAuth";
+import EpisodeSelector from "../components/EpisodeSelector";
 import MediaIcon from "../components/MediaIcon";
 import { ContentStatus } from "../components/ContentVisual";
 import HomepageCanvas, {
@@ -284,6 +285,13 @@ function HomepageWorkspace({ surface }: { surface: string }) {
   const allowed = picking === "hero" ? (heroKinds[surface] ?? []) : kinds;
   useEffect(() => {
     if (!picking) return;
+    if (kind === "episode") {
+      setOptions([]);
+      setCursor(null);
+      setPickerError("");
+      setPickerBusy(false);
+      return;
+    }
     let active = true;
     const request = ++pickerRequest.current;
     setOptions([]);
@@ -1122,24 +1130,48 @@ function HomepageWorkspace({ surface }: { surface: string }) {
               ))}
             </select>
           </label>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setSearch(q);
-            }}
-            style={{ display: "flex", gap: 8, margin: "12px 0" }}
-          >
-            <input
-              className="input"
-              style={{ minWidth: 0, flex: 1 }}
-              aria-label="Search selectable content"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
+          {kind === "episode" ? (
+            <EpisodeSelector
+              onError={setPickerError}
+              onRows={(rows) => {
+                setOptions(rows);
+                setLabels((old) => ({
+                  ...old,
+                  ...Object.fromEntries(
+                    rows.map((r) => [
+                      key({ kind: "episode", id: r.id }),
+                      {
+                        id: r.id,
+                        kind: "episode",
+                        title: r.draft?.title ?? r.title ?? "Untitled",
+                        status: r.status,
+                        image: homepageImage("episode", r),
+                      },
+                    ]),
+                  ),
+                }));
+              }}
             />
-            <button className="btn" type="submit">
-              Search
-            </button>
-          </form>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                setSearch(q);
+              }}
+              style={{ display: "flex", gap: 8, margin: "12px 0" }}
+            >
+              <input
+                className="input"
+                style={{ minWidth: 0, flex: 1 }}
+                aria-label="Search selectable content"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              <button className="btn" type="submit">
+                Search
+              </button>
+            </form>
+          )}
           <p>
             Names and artwork reflect saved content drafts. Publication review
             uses published, available revisions. {chosen.length} of{" "}
@@ -1203,12 +1235,15 @@ function HomepageWorkspace({ surface }: { surface: string }) {
               </li>
             ))}
           </ul>
-          {!options.length && !pickerBusy && !pickerError && (
-            <EmptyState
-              title="No content found"
-              body="Choose another type or search term."
-            />
-          )}
+          {!options.length &&
+            !pickerBusy &&
+            !pickerError &&
+            kind !== "episode" && (
+              <EmptyState
+                title="No content found"
+                body="Choose another type or search term."
+              />
+            )}
           {cursor && (
             <button
               className="btn"

@@ -23,3 +23,6 @@ The protected baseline is ignored under apps/api/.data/homepage-admin-visual-pub
 ## Boundaries and follow-up
 
 This was a presentation-only pass with real browser workflow checks, not a new backend integration-suite run or exhaustive accessibility audit. Hosted acceptance awaits an authorized preview deployment. The existing Homepage content-type catalog does not include Podcasts; that is a separate integration follow-up. Artwork diversity can improve later without changing the curation workflow. Categories & Discovery has not been started. DRM and production email remain pending.
+
+
+Combined-release follow-up: episode selection now uses the shared show/season hierarchy selector, verified with Kingston Stories season-one episodes. Temporary selection was discarded. Categories & Discovery visuals have since been completed; see discovery-visual.md. The original local-only status above records its initial checkpoint; deployment evidence is recorded separately after rollout.
