@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-30",
+  "environment": "existing disposable preview",
+  "status": "READY; authenticated hosted verification passed",
+  "admin": {
+    "commit": "f9ec8d75343deffb03eebf32169239230e99194c",
+    "deployment": "dpl_HjvSBQXuBVfeGMDs7fr3CSX1eYo7",
+    "url": "https://mgtv-admin.vercel.app",
+    "rollbackDeployment": "dpl_5UuoZg8iyb43PjqifZWvrn1F5EUz"
+  },
+  "checks": {
+    "preRelease": "TypeScript/build, 10 shared attachment regressions, 2 direct-upload regressions and 20 local responsive checks passed.",
+    "hosted": "Normal preview staff session; image and Mux thumbnail summaries, version/dimensions/duration, metadata refresh, ready-image picker, alternate selection/discard restoration, video and audio playback passed.",
+    "playback": "Hosted video reached 9.24s; hosted audio reached 13.31s, both readyState 4 and no media error. Previews opened paused and were closed after checks.",
+    "responsive": "20 checks passed at 320/390/768/1440px: selected summaries, video preview, expanded audio, audio/empty attachments and image picker. No page or relevant component horizontal overflow.",
+    "console": "No captured browser warnings/errors."
+  },
+  "recordMutations": false,
+  "apiDeployment": false,
+  "uploadsOrProcessingJobs": false,
+  "pending": [
+    "DRM",
+    "production email"
+  ]
+}

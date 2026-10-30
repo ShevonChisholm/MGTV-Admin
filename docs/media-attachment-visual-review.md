@@ -1,6 +1,6 @@
 # Shared media attachment visual previews and recovery
 
-30 October 2026. Implemented and verified locally; not deployed. Branch: codex/media-attachment-visual.
+30 October 2026. Deployed READY and authenticated hosted verification passed. Branch: codex/media-attachment-visual.
 
 ## Changes
 
@@ -32,4 +32,8 @@ Commands:
 
 ## Release boundary
 
-The earlier Discovery/Commerce repairs are live and hosted-smoke-verified. See discovery-commerce-preview-release.json. This attachment UI is a separate local increment awaiting deployment; do not treat the repair's deployment ID as evidence this UI is hosted.
+The earlier Discovery/Commerce repairs are live and hosted-smoke-verified. See discovery-commerce-preview-release.json. This attachment UI is separately deployed as dpl_HjvSBQXuBVfeGMDs7fr3CSX1eYo7 from f9ec8d7. See media-attachment-preview-release.json.
+
+## Hosted acceptance - 30 October 2026
+
+Normal preview staff authentication at the stable admin alias. Saved image and video thumbnail summaries rendered with exact version IDs and verified metadata. On-demand video advanced to 9.24s and audio to 13.31s with readyState 4 and no media error; both were closed afterward. No autoplay observed. All 20 hosted responsive checks passed at 320/390/768/1440px, without horizontal page/component overflow. Metadata refresh retained the saved version. The ready-image picker worked; selecting an alternate image affected only the client draft, and Discard restored the original image/version. No successful entity save or API mutation, upload, deletion, paid processing or access changes. No captured browser warnings/errors. Temporary viewport override reset. Hosted evidence: media-attachment-hosted-desktop.png and media-attachment-hosted-mobile.png in the Codex visualization folder.
