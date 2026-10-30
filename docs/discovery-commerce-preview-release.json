@@ -1,7 +1,7 @@
 {
   "date": "2026-10-30",
   "environment": "existing disposable preview",
-  "status": "live; authenticated hosted checks pending preview sign-in",
+  "status": "live; authenticated hosted smoke checks passed",
   "api": {
     "commit": "61346de0efcd732b8da574b917c42c1607b83d37",
     "deployment": "dep-dbia470ae00c73bl09j0",
@@ -19,9 +19,8 @@
     "status": "READY",
     "rollbackDeployment": "dpl_4RXJWyi2bsQ14SUzkNamyzzU2W1B"
   },
-  "checks": "API/admin builds, seven focused regressions and eight authenticated local responsive checks passed. Hosted app currently requests normal staff sign-in. No hosted record mutations.",
+  "checks": "Normal preview staff session verified Commerce slot 5 Feb 2027 10:00 am to 7 Feb 2027 10:00 am America/Jamaica, at 320/390/768/1440px without page overflow. Discovery directory loaded and all 12 type checkboxes selected in an unsaved draft, then cancelled. No captured browser warnings/errors. All-kinds API persistence is covered by the isolated integration regression; no hosted category save was performed.",
   "pending": [
-    "authenticated hosted Commerce/Discovery checks",
     "DRM",
     "production email"
   ]
