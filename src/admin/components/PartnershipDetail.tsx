@@ -1,3 +1,4 @@
+import PartnerTasks from "./PartnerTasks";
 import { Link } from "../router";
 import { Identity } from "./AccessVisual";
 import MediaIcon from "./MediaIcon";
@@ -127,6 +128,13 @@ export default function PartnershipDetail({
           payment, publish content or grant access. Partner financial execution
           is not connected.
         </div>
+      )}
+      {kind === "agreements" && (
+        <PartnerTasks
+          key={record.id}
+          agreement={record}
+          canManage={can("partnerships.manage")}
+        />
       )}
       <div className="av-panel">
         <h3>
