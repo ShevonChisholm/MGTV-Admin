@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-29",
+  "environment": "existing disposable preview",
+  "status": "READY; hosted authenticated verification pending staff sign-in",
+  "admin": {
+    "commit": "7ae60d7b9e8095d5711aebfd766e33e2e4d6b578",
+    "deployment": "dpl_4RXJWyi2bsQ14SUzkNamyzzU2W1B",
+    "url": "https://mgtv-admin.vercel.app/admin/settings",
+    "rollbackDeployment": "dpl_z8KzhCEis4oDQKzb3RKFyHF2JGbN"
+  },
+  "checks": {
+    "preRelease": "TypeScript/build passed; seven isolated API tests and 20 local responsive checks passed",
+    "provider": "READY; stable alias present; no aliasError",
+    "hosted": "Normal staff sign-in screen shown after expired preview session. No authenticated settings inspection claimed."
+  },
+  "pending": [
+    "preview staff sign-in and hosted Settings checks",
+    "DRM",
+    "production email"
+  ],
+  "codeChangesBeyondReviewedCommit": false,
+  "settingsMutations": false,
+  "apiDeployment": false
+}

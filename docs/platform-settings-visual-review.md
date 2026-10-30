@@ -1,6 +1,6 @@
 # Platform Settings admin visual review
 
-29 October 2026. Local implementation verified; preview deployment pending. Careers was published first and hosted-verified (see careers-preview-release.json).
+29 October 2026. Deployed READY; final authenticated hosted verification awaits preview staff sign-in. See platform-settings-preview-release.json. Careers was published first and hosted-verified (see careers-preview-release.json).
 
 ## Changes
 
@@ -26,4 +26,4 @@ Evidence in the local Codex visualization folder: platform-settings-organization
 
 ## Deferred
 
-Platform Settings preview deployment pending. DRM, production email/domain/inbox, staff alert delivery/digests and other existing launch/workflow gaps remain separate. No further area started.
+Platform Settings deployment is READY; authenticated hosted verification remains pending staff sign-in. DRM, production email/domain/inbox, staff alert delivery/digests and other existing launch/workflow gaps remain separate. No further area started.
