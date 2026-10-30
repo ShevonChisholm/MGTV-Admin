@@ -12,7 +12,7 @@ Verification: API TypeScript build passed. Three standalone DTO regressions pass
 
 Product option slot dates are formatted explicitly in each option's recorded IANA timezone, instead of the staff browser's timezone. Both endpoints include dates and times, with the zone printed once. Missing/invalid schedule values show Schedule unavailable, avoiding misleading browser-local or 1970 fallback dates. Existing product layout, stored instants, capacity, checkout, payment and booking policies are unchanged.
 
-Verification: admin TypeScript and Vite production build passed. Three focused regression tests passed for different staff default timezones, a New York daylight-saving transition and missing/invalid schedules. The existing bundle-size warning remains. Normal local staff browser verification is pending sign-in at http://127.0.0.1:5894/admin/commerce. No authentication bypass or credential reads.
+Verification: admin TypeScript and Vite production build passed. Three focused regression tests passed for different staff default timezones, a New York daylight-saving transition and missing/invalid schedules. The existing bundle-size warning remains. Normal local staff browser verification passed at http://127.0.0.1:5894/admin/commerce on 30 October 2026. No authentication bypass or credential reads.
 
 Commands:
 - API: node node_modules/typescript/bin/tsc -p tsconfig.json
@@ -25,3 +25,9 @@ Commands:
 ## Boundaries
 
 No preview deployment, permission grants, schema migrations, commercial/provider setting changes or paid jobs. DRM and production email remain pending. No next enhancement started.
+
+## Completed local browser verification
+
+Normal local staff authentication used after user sign-in. Coast & Culture Day Trip and both Find Your Rhythm Workshop slots rendered complete dates/times with the explicit America/Jamaica label. A read-only local database comparison confirmed Coast slot endpoints 2027-02-05T15:00:00Z and 2027-02-07T15:00:00Z display as 10:00 am Jamaica time. No records were edited, archived, purchased or otherwise mutated.
+
+Eight product-detail responsive checks at 320/390/768/1440px showed no horizontal page overflow; desktop and mobile slot screenshots visually inspected. No captured browser warnings/errors. Browser viewport reset. Cross-timezone and DST behavior is covered by the focused formatter regressions; the browser timezone itself was not changed. Evidence: commerce-timezone-local-desktop.png and commerce-timezone-local-mobile.png in the Codex visualization folder. Preview deployment remains pending.
