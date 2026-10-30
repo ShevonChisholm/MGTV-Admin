@@ -1,3 +1,4 @@
+import { commerceSlotRange } from "../utils/commerce-time";
 import CommerceOrdersWorkspace from "../components/CommerceOrdersWorkspace";
 import CommerceProductGrid from "../components/CommerceProductGrid";
 import CommerceProductOverview from "../components/CommerceProductOverview";
@@ -293,8 +294,7 @@ export default function ConnectedCommerce() {
                     </p>
                     {o.starts_at && (
                       <p>
-                        {new Date(o.starts_at).toLocaleString()} –{" "}
-                        {new Date(o.ends_at).toLocaleString()} ({o.timezone})
+                        {commerceSlotRange(o.starts_at, o.ends_at, o.timezone)}
                       </p>
                     )}
                     <button
