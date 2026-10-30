@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-30",
+  "environment": "existing disposable preview",
+  "status": "live; authenticated hosted checks pending preview sign-in",
+  "api": {
+    "commit": "61346de0efcd732b8da574b917c42c1607b83d37",
+    "deployment": "dep-dbia470ae00c73bl09j0",
+    "rollbackDeployment": "dep-dbhrgq8qas5s738uhru0",
+    "health": {
+      "status": "ok",
+      "mode": "preview",
+      "database": "postgresql"
+    }
+  },
+  "admin": {
+    "commit": "e8c85508eb79ecd17bd92fb294522aad5076fbb6",
+    "deployment": "dpl_5UuoZg8iyb43PjqifZWvrn1F5EUz",
+    "url": "https://mgtv-admin.vercel.app",
+    "status": "READY",
+    "rollbackDeployment": "dpl_4RXJWyi2bsQ14SUzkNamyzzU2W1B"
+  },
+  "checks": "API/admin builds, seven focused regressions and eight authenticated local responsive checks passed. Hosted app currently requests normal staff sign-in. No hosted record mutations.",
+  "pending": [
+    "authenticated hosted Commerce/Discovery checks",
+    "DRM",
+    "production email"
+  ]
+}

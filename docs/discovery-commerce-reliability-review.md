@@ -1,6 +1,6 @@
 # Discovery and Commerce reliability repairs
 
-30 October 2026. Implemented locally; preview deployment not performed.
+30 October 2026. Deployed to the existing disposable preview; authenticated hosted checks await preview sign-in.
 
 ## Discovery
 
@@ -24,10 +24,10 @@ Commands:
 
 ## Boundaries
 
-No preview deployment, permission grants, schema migrations, commercial/provider setting changes or paid jobs. DRM and production email remain pending. No next enhancement started.
+No new permission grants, schema migrations, commercial/provider setting changes or paid jobs. DRM and production email remain pending. No next enhancement started.
 
 ## Completed local browser verification
 
 Normal local staff authentication used after user sign-in. Coast & Culture Day Trip and both Find Your Rhythm Workshop slots rendered complete dates/times with the explicit America/Jamaica label. A read-only local database comparison confirmed Coast slot endpoints 2027-02-05T15:00:00Z and 2027-02-07T15:00:00Z display as 10:00 am Jamaica time. No records were edited, archived, purchased or otherwise mutated.
 
-Eight product-detail responsive checks at 320/390/768/1440px showed no horizontal page overflow; desktop and mobile slot screenshots visually inspected. No captured browser warnings/errors. Browser viewport reset. Cross-timezone and DST behavior is covered by the focused formatter regressions; the browser timezone itself was not changed. Evidence: commerce-timezone-local-desktop.png and commerce-timezone-local-mobile.png in the Codex visualization folder. Preview deployment remains pending.
+Eight product-detail responsive checks at 320/390/768/1440px showed no horizontal page overflow; desktop and mobile slot screenshots visually inspected. No captured browser warnings/errors. Browser viewport reset. Cross-timezone and DST behavior is covered by the focused formatter regressions; the browser timezone itself was not changed. Evidence: commerce-timezone-local-desktop.png and commerce-timezone-local-mobile.png in the Codex visualization folder. Preview deployment is live; authenticated hosted checks await preview sign-in.
