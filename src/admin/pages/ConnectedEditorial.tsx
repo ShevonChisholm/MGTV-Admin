@@ -1,3 +1,4 @@
+import { contentReadPermission } from "../api/navigation-access";
 import {
   CONTENT_TYPES,
   ContentGrid,
@@ -512,7 +513,9 @@ export default function ConnectedEditorial({
                 )}
               </div>
               <nav className="cv-type-nav" aria-label="Content types">
-                {CONTENT_TYPES.map((t) => (
+                {CONTENT_TYPES.filter((t) =>
+                  session?.permissions.includes(contentReadPermission(t.id)),
+                ).map((t) => (
                   <Link
                     key={t.id}
                     to={"/admin/content/" + t.id}

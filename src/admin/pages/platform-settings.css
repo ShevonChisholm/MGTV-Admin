@@ -468,3 +468,54 @@
     max-width: 100%;
   }
 }
+
+@media (max-width: 680px) {
+  .platform-v-hero {
+    padding: 14px;
+    gap: 10px;
+  }
+  .platform-v-hero h2 {
+    font-size: 20px;
+    margin: 6px 0;
+  }
+  .platform-v-hero p {
+    display: none;
+  }
+  .platform-v-version {
+    padding: 7px 10px;
+    gap: 8px;
+  }
+  .platform-v-version svg {
+    width: 18px;
+    height: 18px;
+  }
+  .platform-v-saved {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .platform-v-saved > div {
+    padding: 10px;
+    gap: 8px;
+    align-items: start;
+  }
+  .platform-v-saved .platform-v-icon {
+    display: none;
+  }
+  .platform-v-saved strong {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .platform-v-saved small {
+    font-size: 10px;
+  }
+  .platform-v-workspace {
+    gap: 12px;
+  }
+  .platform-v-nav {
+    gap: 6px;
+  }
+  .platform-v-nav > .btn {
+    flex: 1 1 auto;
+    font-size: 12px;
+  }
+}

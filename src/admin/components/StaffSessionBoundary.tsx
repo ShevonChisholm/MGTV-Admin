@@ -1,6 +1,10 @@
+import { firstWorkspace } from "../api/navigation-access";
 import BrandLogo from "../components/BrandLogo";
 import StaffWelcome from "../pages/StaffWelcome";
-import { StaffSessionVerified } from "../api/staff-session-context";
+import {
+  StaffSessionVerified,
+  StaffPermissions,
+} from "../api/staff-session-context";
 import {
   useCallback,
   useEffect,
@@ -31,6 +35,9 @@ export default function StaffSessionBoundary({
   const [state, setState] = useState<
     "checking" | "ready" | "onboarding" | "signed-out" | "error"
   >("checking");
+  const [permissions, setPermissions] = useState<readonly string[] | null>(
+    null,
+  );
   const serial = useRef(0),
     mounted = useRef(true);
   const action =
@@ -41,15 +48,22 @@ export default function StaffSessionBoundary({
     const s = ++serial.current;
     try {
       const session = await api("/admin/session");
-      if (mounted.current && s === serial.current)
+      if (mounted.current && s === serial.current) {
+        setPermissions(
+          Array.isArray(session.permissions) ? session.permissions : [],
+        );
         setState(session.onboardingRequired ? "onboarding" : "ready");
+        return session;
+      }
     } catch (error) {
-      if (mounted.current && s === serial.current)
+      if (mounted.current && s === serial.current) {
+        setPermissions(null);
         setState(
           error instanceof ApiError && error.status === 401
             ? "signed-out"
             : "error",
         );
+      }
     }
   }, []);
   useEffect(() => {
@@ -104,10 +118,15 @@ export default function StaffSessionBoundary({
             key={action ?? "sign-in"}
             action={action ?? "sign-in"}
             onAuthenticated={async () => {
-              if (action) {
-                navigate("/admin/dashboard", { replace: true });
-              }
-              await refresh();
+              const session = await refresh();
+              if (action && session)
+                navigate(
+                  session.onboardingRequired
+                    ? "/admin/welcome"
+                    : (firstWorkspace(session.permissions ?? []) ??
+                        "/admin/dashboard"),
+                  { replace: true },
+                );
             }}
           />
         ) : (
@@ -116,7 +135,8 @@ export default function StaffSessionBoundary({
             aria-busy={state === "checking"}
           >
             <div className="staff-brand">
-              <BrandLogo width={128} /><span>THE PEOPLE BEHIND THE STORIES</span>
+              <BrandLogo width={128} />
+              <span>THE PEOPLE BEHIND THE STORIES</span>
             </div>
             <h1>
               {state === "checking"
@@ -151,7 +171,9 @@ export default function StaffSessionBoundary({
     );
   return (
     <StaffSessionVerified.Provider value={true}>
-      {children}
+      <StaffPermissions.Provider value={permissions}>
+        {children}
+      </StaffPermissions.Provider>
     </StaffSessionVerified.Provider>
   );
 }

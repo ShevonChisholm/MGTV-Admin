@@ -625,6 +625,10 @@
   }
   .career-v-toolbar .btn {
     flex: 1 1 90px;
+    white-space: nowrap;
+  }
+  .career-v-toolbar .btn:last-child {
+    flex-basis: 100%;
   }
   .career-v-vacancies {
     grid-template-columns: minmax(0, 1fr);
@@ -699,4 +703,33 @@
 }
 .career-admin > .btn {
   align-self: flex-start;
+}
+
+@media (max-width: 680px) {
+  .career-v-hero {
+    padding: 14px;
+    gap: 8px;
+  }
+  .career-v-hero h2 {
+    font-size: 20px;
+    margin: 6px 0;
+  }
+  .career-v-hero p {
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 6px 0 0;
+  }
+  .career-v-summary {
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .career-v-summary > div {
+    padding: 10px;
+  }
+  .career-v-summary strong {
+    font-size: 18px;
+  }
+  .career-admin {
+    gap: 12px;
+  }
 }

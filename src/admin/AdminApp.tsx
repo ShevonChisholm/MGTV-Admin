@@ -1,3 +1,5 @@
+import { canOpenWorkspace, firstWorkspace } from "./api/navigation-access";
+import { useStaffPermissions } from "./api/staff-session-context";
 import PartnershipLinks from "./components/PartnershipLinks";
 import ConnectedPartnerships from "./pages/ConnectedPartnerships";
 import ConnectedPodcasts from "./pages/ConnectedPodcasts";
@@ -11,8 +13,8 @@ import StaffSessionBoundary from "./components/StaffSessionBoundary";
 import ConnectedCommunications from "./pages/ConnectedCommunications";
 import ConnectedCommerce from "./pages/ConnectedCommerce";
 import ConnectedLifestyle from "./pages/ConnectedLifestyle";
-import ConnectedNews from './pages/ConnectedNews';
-import ConnectedMusicLibrary from './pages/ConnectedMusicLibrary';
+import ConnectedNews from "./pages/ConnectedNews";
+import ConnectedMusicLibrary from "./pages/ConnectedMusicLibrary";
 import StaffAuth from "./pages/StaffAuth";
 import ConnectedSubscriptionTiers from "./pages/ConnectedSubscriptionTiers";
 import React, { useCallback, useState } from "react";
@@ -52,16 +54,76 @@ interface PageMeta {
 }
 
 const pages: Record<string, PageMeta> = {
- partnerships:{breadcrumb:["Portal","Partners & Events","Partnerships"],title:"Partnerships",description:"Service capabilities, tailored offerings, agreements and fulfillment.",component:<ConnectedPartnerships/>},
- podcasts:{breadcrumb:["Portal","Content","Podcasts"],title:"Podcasts",description:"Shape conversations, organize audio and video episodes, and publish with explicit permissions.",component:<ConnectedPodcasts/>},
- careers:{breadcrumb:["Portal","Operations","Careers"],title:"Careers",description:"Create opportunities, review saved vacancies and manage external applications.",component:<ConnectedCareers/>},
- onboarding:{breadcrumb:["Portal","Operations","Staff Onboarding"],title:"Staff Onboarding",description:"Guide staff through invitations, secure setup, orientation and explicit access review.",component:<ConnectedOnboarding/>},
- access:{breadcrumb:["Portal","Operations","Roles & Permissions"],title:"Roles, Permissions & Resources",description:"Manage registered capabilities, reusable roles and explicit staff access.",component:<ConnectedAccess/>},
- communications:{breadcrumb:["Portal","Audience","Contact & Newsletter"],title:"Contact & Newsletter",description:"Handle enquiries, subscriber consent and newsletter delivery.",component:<ConnectedCommunications/>},
- commerce:{breadcrumb:["Portal","Shop & Commerce"],title:"Shop & Commerce",description:"Manage products, inventory, dated availability and customer orders.",component:<ConnectedCommerce/>},
- lifestyle:{breadcrumb:["Portal","Content","Lifestyle & Culture"],title:"Lifestyle & Culture",description:"Create Caribbean lifestyle stories, review saved revisions and publish with explicit permissions.",component:<ConnectedLifestyle/>},
- news: {breadcrumb:["Portal","Content","News"],title:"News & Articles",description:"Craft stories, review saved revisions and publish with explicit permissions.",component:<ConnectedNews/>},
-  "music-library": {breadcrumb:["Portal","Content","Music library"],title:"Artists, Albums & Playlists",description:"Shape artist profiles, album track lists and editorial playlists. Publish saved revisions with explicit permissions.",component:<ConnectedMusicLibrary/>},
+  partnerships: {
+    breadcrumb: ["Portal", "Partners & Events", "Partnerships"],
+    title: "Partnerships",
+    description:
+      "Service capabilities, tailored offerings, agreements and fulfillment.",
+    component: <ConnectedPartnerships />,
+  },
+  podcasts: {
+    breadcrumb: ["Portal", "Content", "Podcasts"],
+    title: "Podcasts",
+    description:
+      "Shape conversations, organize audio and video episodes, and publish with explicit permissions.",
+    component: <ConnectedPodcasts />,
+  },
+  careers: {
+    breadcrumb: ["Portal", "Operations", "Careers"],
+    title: "Careers",
+    description:
+      "Create opportunities, review saved vacancies and manage external applications.",
+    component: <ConnectedCareers />,
+  },
+  onboarding: {
+    breadcrumb: ["Portal", "Operations", "Staff Onboarding"],
+    title: "Staff Onboarding",
+    description:
+      "Guide staff through invitations, secure setup, orientation and explicit access review.",
+    component: <ConnectedOnboarding />,
+  },
+  access: {
+    breadcrumb: ["Portal", "Operations", "Roles & Permissions"],
+    title: "Roles, Permissions & Resources",
+    description:
+      "Manage registered capabilities, reusable roles and explicit staff access.",
+    component: <ConnectedAccess />,
+  },
+  communications: {
+    breadcrumb: ["Portal", "Audience", "Contact & Newsletter"],
+    title: "Contact & Newsletter",
+    description:
+      "Handle enquiries, subscriber consent and newsletter delivery.",
+    component: <ConnectedCommunications />,
+  },
+  commerce: {
+    breadcrumb: ["Portal", "Shop & Commerce"],
+    title: "Shop & Commerce",
+    description:
+      "Manage products, inventory, dated availability and customer orders.",
+    component: <ConnectedCommerce />,
+  },
+  lifestyle: {
+    breadcrumb: ["Portal", "Content", "Lifestyle & Culture"],
+    title: "Lifestyle & Culture",
+    description:
+      "Create Caribbean lifestyle stories, review saved revisions and publish with explicit permissions.",
+    component: <ConnectedLifestyle />,
+  },
+  news: {
+    breadcrumb: ["Portal", "Content", "News"],
+    title: "News & Articles",
+    description:
+      "Craft stories, review saved revisions and publish with explicit permissions.",
+    component: <ConnectedNews />,
+  },
+  "music-library": {
+    breadcrumb: ["Portal", "Content", "Music library"],
+    title: "Artists, Albums & Playlists",
+    description:
+      "Shape artist profiles, album track lists and editorial playlists. Publish saved revisions with explicit permissions.",
+    component: <ConnectedMusicLibrary />,
+  },
   dashboard: {
     breadcrumb: ["Portal", "Dashboard"],
     title: "Dashboard",
@@ -79,8 +141,9 @@ const pages: Record<string, PageMeta> = {
   media: {
     breadcrumb: ["Portal", "Content", "Media Library"],
     title: "Media Library",
-    description:
-      connected ? "Browse real uploads, processing states and saved entity references. Upload files from their intended editor." : "Add and replace video, image, audio and caption files. Uploads and processing here are simulated; nothing leaves this browser.",
+    description: connected
+      ? "Browse real uploads, processing states and saved entity references. Upload files from their intended editor."
+      : "Add and replace video, image, audio and caption files. Uploads and processing here are simulated; nothing leaves this browser.",
     component: connected ? <ConnectedMedia /> : <Media />,
   },
   homepage: {
@@ -177,12 +240,12 @@ const pages: Record<string, PageMeta> = {
 };
 
 const WIRED = new Set([
- "partnerships",
+  "partnerships",
   "podcasts",
- "careers",
- "onboarding",
- "access",
- "communications",
+  "careers",
+  "onboarding",
+  "access",
+  "communications",
   "lifestyle",
   "news",
   "music-library",
@@ -207,6 +270,10 @@ function Shell() {
   const closeMenu = useCallback(() => setMenu(false), []);
   const page = route.section in pages ? route.section : "dashboard";
   const base = pages[page];
+  const staffPermissions = useStaffPermissions();
+  const permitted =
+    !connected || canOpenWorkspace(page, route.parts, staffPermissions ?? []);
+  const availablePath = firstWorkspace(staffPermissions ?? []);
   const opsHeader = useOpsHeader(page, route.parts);
 
   let header: {
@@ -266,20 +333,168 @@ function Shell() {
   }
 
   if (opsHeader) header = opsHeader;
-  if(connected&&page==="settings")header={breadcrumb:[{label:"Portal"},{label:"Operations"},{label:"Platform Settings"}],title:"Platform Settings",description:"Manage organization defaults and saved staff alert preferences with explicit permissions, versioned changes and an audit history."};
-  if(connected&&page==="analytics")header={breadcrumb:[{label:"Portal"},{label:"Operations"},{label:"Analytics"}],title:"Analytics & Reports",description:"Explore qualified playback, audience trends and returning viewers. Observed activity and synthetic development data are kept separate."};
-  if(connected&&page==="dashboard")header={breadcrumb:[{label:"Portal"},{label:"Dashboard"}],title:"Dashboard",description:"Audience activity and current operational counts from the database, refreshed on request."};
-  if(connected&&page==="homepage") header={breadcrumb:[{label:"Portal"},{label:"Homepage & Featured",to:"/admin/homepage"}],title:"Homepage & Featured Content",description:"Arrange editorial sections and featured picks, review saved revisions and publish with explicit permissions."};
-  if(connected&&page==="moderation") header={breadcrumb:[{label:"Portal"},{label:"Audience"},{label:"Moderation",to:"/admin/moderation"}],title:"Moderation",description:"Review content reports, record decisions and take published items down with explicit permission."};
-  if(connected&&page==="notifications") header={breadcrumb:[{label:"Portal"},{label:"Audience"},{label:"Notifications",to:"/admin/notifications"}],title:"Notifications",description:"Compose, preview and schedule customer updates. In-app delivery is connected; email stays in the private development inbox."};
-  if(connected&&page==="discovery")header={breadcrumb:[{label:"Portal"},{label:"Categories & Discovery",to:"/admin/discovery"}],title:"Categories & Discovery",description:"Manage shared categories, genres and editorial tags, protected age-rating descriptions, and region/language reference labels."};
-  if(connected&&page==="advertising") header={breadcrumb:[{label:"Portal"},{label:"Advertising",to:"/admin/advertising"}],title:"Advertising",description:"Manage advertisers, review campaign revisions and deliver approved creative with subscription-aware ad policies."};
-  if (connected && page === "sponsors") header={breadcrumb:[{label:"Portal"},{label:"Sponsors",to:"/admin/sponsors"}],title:route.parts[0]?"Sponsor organization":"Sponsors",description:"Manage sponsor organizations, private contacts, approved branding and show/event associations."};
-  if (connected && page === "awards") header={breadcrumb:[{label:"Portal"},{label:"Awards & Voting",to:"/admin/awards"}],title:route.parts[0]?"Award program":"Awards & Voting",description:"Celebrate Caribbean excellence with verified nominees, one final account vote per category and reviewed results."};
-  if (connected && page === "events") header={breadcrumb:[{label:"Portal"},{label:"Events",to:"/admin/events"}],title:route.parts[0]?"Event editor":"Events",description:"Prepare event details and media. Publication, event lifecycle and broadcast availability are separate."};
-  if(connected&&page==="content") { const section=route.parts[0]||"shows"; const label=section==="movies"?"Movies":section==="audio"?"Audio tracks":section==="sports"?"Sports":section==="music-videos"||section==="music"?"Music videos":"Shows"; header={breadcrumb:[{label:"Portal"},{label:"Content Library",to:"/admin/content"},{label,to:"/admin/content/"+section}],title:route.parts[1]?"Content workspace":"Content Library",description:"Explore artwork, shape saved drafts and review publication. Your changes are stored securely by the API."}; }
-  if (connected && page === "content" && ["music","music-videos","audio"].includes(route.parts[0])) header={breadcrumb:[{label:"Portal"},{label:"Music",to:"/admin/content/music-videos"}],title:route.parts[1]?"Music workspace":route.parts[0] === "audio"?"Audio tracks":"Music videos",description:"Publish verified music videos and MP3 tracks with saved revisions and explicit permissions."};
-  if (connected && page === "content" && route.parts[0] === "sports") header={breadcrumb:[{label:"Portal"},{label:"Sports",to:"/admin/content/sports"}],title:route.parts[1]?"Sports workspace":"Sports",description:"Prepare sporting highlights and replays, review saved revisions and publish with explicit permissions."};
+  if (connected && page === "settings")
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Operations" },
+        { label: "Platform Settings" },
+      ],
+      title: "Platform Settings",
+      description:
+        "Manage organization defaults and saved staff alert preferences with explicit permissions, versioned changes and an audit history.",
+    };
+  if (connected && page === "analytics")
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Operations" },
+        { label: "Analytics" },
+      ],
+      title: "Analytics & Reports",
+      description:
+        "Explore qualified playback, audience trends and returning viewers. Observed activity and synthetic development data are kept separate.",
+    };
+  if (connected && page === "dashboard")
+    header = {
+      breadcrumb: [{ label: "Portal" }, { label: "Dashboard" }],
+      title: "Dashboard",
+      description:
+        "Audience activity and current operational counts from the database, refreshed on request.",
+    };
+  if (connected && page === "homepage")
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Homepage & Featured", to: "/admin/homepage" },
+      ],
+      title: "Homepage & Featured Content",
+      description:
+        "Arrange editorial sections and featured picks, review saved revisions and publish with explicit permissions.",
+    };
+  if (connected && page === "moderation")
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Audience" },
+        { label: "Moderation", to: "/admin/moderation" },
+      ],
+      title: "Moderation",
+      description:
+        "Review content reports, record decisions and take published items down with explicit permission.",
+    };
+  if (connected && page === "notifications")
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Audience" },
+        { label: "Notifications", to: "/admin/notifications" },
+      ],
+      title: "Notifications",
+      description:
+        "Compose, preview and schedule customer updates. In-app delivery is connected; email stays in the private development inbox.",
+    };
+  if (connected && page === "discovery")
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Categories & Discovery", to: "/admin/discovery" },
+      ],
+      title: "Categories & Discovery",
+      description:
+        "Manage shared categories, genres and editorial tags, protected age-rating descriptions, and region/language reference labels.",
+    };
+  if (connected && page === "advertising")
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Advertising", to: "/admin/advertising" },
+      ],
+      title: "Advertising",
+      description:
+        "Manage advertisers, review campaign revisions and deliver approved creative with subscription-aware ad policies.",
+    };
+  if (connected && page === "sponsors")
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Sponsors", to: "/admin/sponsors" },
+      ],
+      title: route.parts[0] ? "Sponsor organization" : "Sponsors",
+      description:
+        "Manage sponsor organizations, private contacts, approved branding and show/event associations.",
+    };
+  if (connected && page === "awards")
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Awards & Voting", to: "/admin/awards" },
+      ],
+      title: route.parts[0] ? "Award program" : "Awards & Voting",
+      description:
+        "Celebrate Caribbean excellence with verified nominees, one final account vote per category and reviewed results.",
+    };
+  if (connected && page === "events")
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Events", to: "/admin/events" },
+      ],
+      title: route.parts[0] ? "Event editor" : "Events",
+      description:
+        "Prepare event details and media. Publication, event lifecycle and broadcast availability are separate.",
+    };
+  if (connected && page === "content") {
+    const section = route.parts[0] || "shows";
+    const label =
+      section === "movies"
+        ? "Movies"
+        : section === "audio"
+          ? "Audio tracks"
+          : section === "sports"
+            ? "Sports"
+            : section === "music-videos" || section === "music"
+              ? "Music videos"
+              : "Shows";
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Content Library", to: "/admin/content" },
+        { label, to: "/admin/content/" + section },
+      ],
+      title: route.parts[1] ? "Content workspace" : "Content Library",
+      description:
+        "Explore artwork, shape saved drafts and review publication. Your changes are stored securely by the API.",
+    };
+  }
+  if (
+    connected &&
+    page === "content" &&
+    ["music", "music-videos", "audio"].includes(route.parts[0])
+  )
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Music", to: "/admin/content/music-videos" },
+      ],
+      title: route.parts[1]
+        ? "Music workspace"
+        : route.parts[0] === "audio"
+          ? "Audio tracks"
+          : "Music videos",
+      description:
+        "Publish verified music videos and MP3 tracks with saved revisions and explicit permissions.",
+    };
+  if (connected && page === "content" && route.parts[0] === "sports")
+    header = {
+      breadcrumb: [
+        { label: "Portal" },
+        { label: "Sports", to: "/admin/content/sports" },
+      ],
+      title: route.parts[1] ? "Sports workspace" : "Sports",
+      description:
+        "Prepare sporting highlights and replays, review saved revisions and publish with explicit permissions.",
+    };
   if (connected && page === "content" && route.parts[0] === "movies")
     header = {
       breadcrumb: [
@@ -368,7 +583,12 @@ function Shell() {
           {!WIRED.has(page) &&
             !(
               connected &&
-              (page === "customers" || page === "subscriptions" || page === "discovery" || page === "commerce" || page === "analytics" || page === "dashboard")
+              (page === "customers" ||
+                page === "subscriptions" ||
+                page === "discovery" ||
+                page === "commerce" ||
+                page === "analytics" ||
+                page === "dashboard")
             ) && (
               <div
                 role="note"
@@ -385,28 +605,42 @@ function Shell() {
               >
                 Preview only. This section is out of scope for the current
                 prototype pass, so its buttons do not change anything. Content,
-                Media, Homepage, Sponsors, Advertising, Awards,
-                Moderation, Notifications, Admin Users and Settings are
-                interactive.
+                Media, Homepage, Sponsors, Advertising, Awards, Moderation,
+                Notifications, Admin Users and Settings are interactive.
               </div>
             )}
           <ScreenTransition screenKey={route.path}>
-          <PageErrorBoundary resetKey={route.path}>
-          {connected && page === "subscriptions" ? (
-            <ConnectedSubscriptionTiers />
-          ) : connected && (page === "users" || page === "customers") ? (
-            <ConnectedUsers
-              key={`${page}:${route.parts[0] ?? "list"}`}
-              kind={page === "users" ? "staff" : "customer"}
-              id={route.parts[0]}
-            />
-          ) : page === "content" ? (
-            <Content />
-          ) : (
-            base.component
-          )}
-          </PageErrorBoundary>
-          {connected && <PartnershipLinks/>}
+            <PageErrorBoundary resetKey={route.path}>
+              {!permitted ? (
+                <section className="nav-access-notice" role="status">
+                  <h2>This workspace needs permission</h2>
+                  <p>
+                    Your staff account does not currently have read access here.
+                    Ask an access manager for the resource permissions you need.
+                  </p>
+                  {availablePath ? (
+                    <a className="btn btn-primary" href={availablePath}>
+                      Open an available workspace
+                    </a>
+                  ) : (
+                    <p>No workspaces are assigned to this account yet.</p>
+                  )}
+                </section>
+              ) : connected && page === "subscriptions" ? (
+                <ConnectedSubscriptionTiers />
+              ) : connected && (page === "users" || page === "customers") ? (
+                <ConnectedUsers
+                  key={`${page}:${route.parts[0] ?? "list"}`}
+                  kind={page === "users" ? "staff" : "customer"}
+                  id={route.parts[0]}
+                />
+              ) : page === "content" ? (
+                <Content />
+              ) : (
+                base.component
+              )}
+            </PageErrorBoundary>
+            {connected && permitted && <PartnershipLinks />}
           </ScreenTransition>
         </main>
       </div>
@@ -428,17 +662,27 @@ function Shell() {
   );
 }
 
-function StaffSessionBoundaryIfConnected({children}:{children:React.ReactNode}){return connected?<StaffSessionBoundary>{children}</StaffSessionBoundary>:<>{children}</>}
+function StaffSessionBoundaryIfConnected({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return connected ? (
+    <StaffSessionBoundary>{children}</StaffSessionBoundary>
+  ) : (
+    <>{children}</>
+  );
+}
 
 export default function AdminApp() {
   return (
     <RouterProvider>
       <StaffSessionBoundaryIfConnected>
-      <StoreProvider>
-        <OpsProvider>
-          <Shell />
-        </OpsProvider>
-      </StoreProvider>
+        <StoreProvider>
+          <OpsProvider>
+            <Shell />
+          </OpsProvider>
+        </StoreProvider>
       </StaffSessionBoundaryIfConnected>
     </RouterProvider>
   );

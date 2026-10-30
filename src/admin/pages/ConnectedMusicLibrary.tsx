@@ -1,3 +1,4 @@
+import { useStaffPermissions } from "../api/staff-session-context";
 import MediaAttachment from "../components/MediaAttachment";
 import LoadingState from "../components/LoadingState";
 import React, { useEffect, useRef, useState } from "react";
@@ -29,7 +30,10 @@ const defaults = (kind: string) => ({
 });
 export default function ConnectedMusicLibrary() {
   const { route } = useRouter();
-  const kind = types.includes(route.parts[0]) ? route.parts[0] : "artists";
+  const permissions = useStaffPermissions();
+  const kind = types.includes(route.parts[0])
+    ? route.parts[0]
+    : (types.find((t) => permissions?.includes(t + ".read")) ?? "artists");
   return (
     <Editor
       key={kind + ":" + (route.parts[1] ?? "list")}
@@ -212,16 +216,18 @@ function Editor({ kind, id }: { kind: string; id?: string }) {
   return (
     <div className="page-pad music-library-editor">
       <nav className="cv-type-nav" aria-label="Music library sections">
-        {libraryTypes.map((t) => (
-          <Link
-            aria-current={t.id === kind ? "page" : undefined}
-            key={t.id}
-            to={"/admin/music-library/" + t.id}
-          >
-            <MediaIcon name={t.icon} size={18} />
-            {t.label}
-          </Link>
-        ))}
+        {libraryTypes
+          .filter((t) => session?.permissions.includes(t.id + ".read"))
+          .map((t) => (
+            <Link
+              aria-current={t.id === kind ? "page" : undefined}
+              key={t.id}
+              to={"/admin/music-library/" + t.id}
+            >
+              <MediaIcon name={t.icon} size={18} />
+              {t.label}
+            </Link>
+          ))}
       </nav>
       {error && (
         <div role="alert" className="callout">

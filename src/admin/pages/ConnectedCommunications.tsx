@@ -1,3 +1,4 @@
+import { useStaffPermissions } from "../api/staff-session-context";
 import LoadingState from "../components/LoadingState";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
@@ -34,7 +35,16 @@ const style = {
   font: "inherit",
 };
 export default function ConnectedCommunications() {
-  const [tab, setTab] = useState<Tab>("contact"),
+  const verifiedPermissions = useStaffPermissions();
+  const allowedTabs: Tab[] = (
+    ["contact", "subscribers", "campaigns"] as Tab[]
+  ).filter((t) =>
+    verifiedPermissions?.includes(
+      t === "contact" ? "contact.read" : "newsletter.read",
+    ),
+  );
+  const allowedTabKey = allowedTabs.join(",");
+  const [tab, setTab] = useState<Tab>(() => allowedTabs[0] ?? "contact"),
     [session, setSession] = useState<any>(null),
     [unauth, setUnauth] = useState(false),
     [items, setItems] = useState<any[]>([]),
@@ -100,7 +110,17 @@ export default function ConnectedCommunications() {
     setError("");
     retry.current.body = "";
   }
+  useEffect(() => {
+    if (!allowedTabs.includes(tab)) {
+      generation.current++;
+      clear();
+      setItems([]);
+      setNext(null);
+      setTab(allowedTabs[0] ?? "contact");
+    }
+  }, [allowedTabKey, tab]);
   async function load(cursor?: string) {
+    if (!allowedTabs.includes(tab)) return;
     const g = ++generation.current;
     setBusy(true);
     setError("");
@@ -108,6 +128,8 @@ export default function ConnectedCommunications() {
       const s = await api("/admin/session");
       if (g !== generation.current) return;
       setSession(s);
+      if (!s.permissions.includes(permission + ".read"))
+        throw Error("Read permission is required for this workspace.");
       const params = new URLSearchParams({
         status,
         q: query,
@@ -238,7 +260,7 @@ export default function ConnectedCommunications() {
         aria-label="Communications"
         style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
       >
-        {(["contact", "subscribers", "campaigns"] as Tab[]).map((t) => (
+        {allowedTabs.map((t) => (
           <button
             key={t}
             role="tab"
@@ -246,7 +268,7 @@ export default function ConnectedCommunications() {
             aria-selected={tab === t}
             tabIndex={tab === t ? 0 : -1}
             onKeyDown={(e) => {
-              const tabs = ["contact", "subscribers", "campaigns"] as Tab[];
+              const tabs = allowedTabs;
               const position = tabs.indexOf(t);
               const step =
                 e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
