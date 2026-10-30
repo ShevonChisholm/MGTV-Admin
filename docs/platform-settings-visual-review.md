@@ -1,6 +1,6 @@
 # Platform Settings admin visual review
 
-29 October 2026. Deployed READY; final authenticated hosted verification awaits preview staff sign-in. See platform-settings-preview-release.json. Careers was published first and hosted-verified (see careers-preview-release.json).
+29 October 2026 implementation; authenticated hosted verification completed 30 October 2026. Deployed READY. See platform-settings-preview-release.json. Careers was published first and hosted-verified (see careers-preview-release.json).
 
 ## Changes
 
@@ -26,4 +26,14 @@ Evidence in the local Codex visualization folder: platform-settings-organization
 
 ## Deferred
 
-Platform Settings deployment is READY; authenticated hosted verification remains pending staff sign-in. DRM, production email/domain/inbox, staff alert delivery/digests and other existing launch/workflow gaps remain separate. No further area started.
+Platform Settings deployment is READY and authenticated hosted verification passed. DRM, production email/domain/inbox, staff alert delivery/digests and other existing launch/workflow gaps remain separate. No further area started.
+
+## Hosted verification - 30 October 2026
+
+- Used the normal preview staff session after the user signed in; no authentication bypass, credentials read or access changes.
+- Organization summaries matched saved v1, with support email unconfigured. All three preferences were off and explicitly labelled delivery pending.
+- Space toggled weekly digest in the client draft. Review showed saved off versus draft on; Save remained disabled until a valid reason. The enabled Save was not clicked.
+- Expanded v1 history showed the immutable saved configuration. Discard cleared the reason and pending diff, disabled Save and restored all preferences to off.
+- Sixteen hosted responsive checks covered pending review with expanded history, organization, preferences and no-change review at 320/390/768/1440px. No horizontal page/workspace overflow; mobile and desktop screenshots visually inspected; no captured browser warnings/errors. Browser viewport override reset afterward.
+- No successful Settings write, API deployment, delivery or permission changes. Existing local API tests remain the evidence for conflict/idempotency/pagination conditions; those were not forced on the hosted database.
+- Evidence: platform-settings-hosted-verified.png and platform-settings-hosted-mobile.png in the Codex visualization folder.

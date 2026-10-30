@@ -2,7 +2,7 @@
 
 ## Scope and limits
 
-The tracked first-pass visual queue has been deployed, including Platform Settings commit 7ae60d7. Its final authenticated hosted check is pending because the preview staff session expired. The local session also expired when a further screen inspection was attempted. No authentication was bypassed, grants changed or credentials read.
+The tracked first-pass visual queue has been deployed, including Platform Settings commit 7ae60d7. Its authenticated hosted verification subsequently passed on 30 October 2026 using the normal preview staff sign-in (see platform-settings-preview-release.json). The local session also expired when a further screen inspection was attempted. No authentication was bypassed, grants changed or credentials read.
 
 This is a targeted source/workflow audit, supported by the recent local responsive screenshots. It is not a fresh end-to-end browser audit of every admin screen, a security assessment, or proof that all existing module gaps are closed. No application fixes from this scan were implemented.
 

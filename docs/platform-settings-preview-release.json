@@ -1,7 +1,7 @@
 {
   "date": "2026-10-29",
   "environment": "existing disposable preview",
-  "status": "READY; hosted authenticated verification pending staff sign-in",
+  "status": "READY; authenticated hosted verification passed",
   "admin": {
     "commit": "7ae60d7b9e8095d5711aebfd766e33e2e4d6b578",
     "deployment": "dpl_4RXJWyi2bsQ14SUzkNamyzzU2W1B",
@@ -11,14 +11,14 @@
   "checks": {
     "preRelease": "TypeScript/build passed; seven isolated API tests and 20 local responsive checks passed",
     "provider": "READY; stable alias present; no aliasError",
-    "hosted": "Normal staff sign-in screen shown after expired preview session. No authenticated settings inspection claimed."
+    "hosted": "Normal preview staff sign-in; organization, staff preferences, review/discard, reason gating, keyboard switch and immutable history verified. Sixteen responsive checks at 320/390/768/1440px passed without horizontal page or workspace overflow. No captured browser warnings/errors. Saved configuration remained v1; no successful save or provider delivery."
   },
   "pending": [
-    "preview staff sign-in and hosted Settings checks",
     "DRM",
     "production email"
   ],
   "codeChangesBeyondReviewedCommit": false,
   "settingsMutations": false,
-  "apiDeployment": false
+  "apiDeployment": false,
+  "verifiedDate": "2026-10-30"
 }
