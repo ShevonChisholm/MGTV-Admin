@@ -1,3 +1,5 @@
+import MediaAttachmentPreview from "./MediaAttachmentPreview";
+import MediaIcon from "./MediaIcon";
 import { MediaLibraryGrid } from "./MediaLibraryView";
 import React, { useEffect, useRef, useState } from "react";
 import { api, upload } from "../api/client";
@@ -13,6 +15,7 @@ export type MediaItem = {
   durationSeconds: number | null;
   width: number | null;
   height: number | null;
+  thumbnailUrl?: string | null;
 };
 export function MediaLibraryList({
   kind,
@@ -50,7 +53,16 @@ export default function MediaAttachment({
     [progress, setProgress] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [item, setItem] = useState<MediaItem | null>(null);
+    [metadata, setMetadata] = useState<{
+      value: string | null | undefined;
+      item: MediaItem | null;
+      error: string;
+      loading: boolean;
+    }>({ value: null, item: null, error: "", loading: false }),
+    [refresh, setRefresh] = useState(0);
+  const item = canRead && metadata.value === value ? metadata.item : null;
+  const loading =
+    !!value && canRead && (metadata.value !== value || metadata.loading);
   const alive = useRef(true);
   useDirtyGuard(() => busy);
   useEffect(() => {
@@ -71,19 +83,43 @@ export default function MediaAttachment({
   }, []);
   useEffect(() => {
     let current = true;
-    setItem(null);
+    setMetadata({ value, item: null, error: "", loading: !!value && canRead });
     setProgress("");
     if (value && canRead)
       void api("/admin/media?" + new URLSearchParams({ versionId: value }))
         .then((p) => {
-          if (current) setItem(p.items[0] ?? null);
+          if (!current) return;
+          const found = p.items.find(
+            (candidate: MediaItem) => candidate.versionId === value,
+          );
+          setMetadata({
+            value,
+            item: found ?? null,
+            loading: false,
+            error: found
+              ? ""
+              : "This selected version is no longer available. Keep it for review, choose a replacement or remove the selection.",
+          });
         })
-        .catch(() => {});
+        .catch(() => {
+          if (current)
+            setMetadata({
+              value,
+              item: null,
+              loading: false,
+              error:
+                "We couldn't load this file's details. Your selection is unchanged.",
+            });
+        });
     return () => {
       current = false;
     };
-  }, [value, canRead]);
+  }, [value, canRead, refresh]);
   function select(item: MediaItem) {
+    if (item.state !== "ready" || (kind !== "any" && item.kind !== kind)) {
+      setError(`Choose a processed ${kind} file.`);
+      return;
+    }
     if (
       maxDuration &&
       (item.durationSeconds == null ||
@@ -94,7 +130,7 @@ export default function MediaAttachment({
       return;
     }
     onChange(item.versionId);
-    setItem(item);
+    setMetadata({ value: item.versionId, item, loading: false, error: "" });
     setError("");
     setOpen(false);
   }
@@ -136,46 +172,64 @@ export default function MediaAttachment({
     }
   }
   return (
-    <section
-      aria-label={label}
-      style={{
-        display: "grid",
-        gap: 8,
-        padding: 14,
-        border: "1px solid var(--border)",
-        borderRadius: 8,
-        minWidth: 0,
-      }}
-    >
-      <strong style={{ fontSize: 13 }}>{label}</strong>
-      <p
-        style={{
-          margin: 0,
-          fontSize: 13,
-          overflowWrap: "anywhere",
-          color: "var(--text-secondary)",
-        }}
-      >
-        {value
-          ? `${item?.filename ?? "Selected media version"} · ${item?.state ?? "attachment selected"}`
-          : "No file selected"}
-      </p>
+    <section aria-label={label} className="ma-attachment">
+      <div className="ma-heading">
+        <MediaIcon name={kind === "any" ? "file" : kind} size={18} />
+        <strong>{label}</strong>
+      </div>
+      {loading ? (
+        <div className="ma-placeholder" role="status" aria-busy="true">
+          <MediaIcon name="clock" />
+          Loading selected file...
+        </div>
+      ) : item ? (
+        <MediaAttachmentPreview key={item.versionId} item={item} />
+      ) : (
+        <div className="ma-placeholder">
+          <MediaIcon
+            name={value ? "lock" : kind === "any" ? "file" : kind}
+            size={28}
+          />
+          <span>
+            {value
+              ? canRead
+                ? "Selected version unavailable"
+                : "Attachment selected · private details"
+              : "Choose the file behind this story"}
+          </span>
+        </div>
+      )}
+      {value && canRead && metadata.value === value && metadata.error && (
+        <div className="ma-message" role="alert">
+          <p>{metadata.error}</p>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={loading}
+            onClick={() => setRefresh((n) => n + 1)}
+          >
+            <MediaIcon name="refresh" size={14} />
+            Retry file details
+          </button>
+        </div>
+      )}
       <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
         {selectionHint ??
-          "Selection belongs to this draft only after you save. Replacing or removing it does not delete the library file."}
+          "Save this entity to apply attachment changes. Replacing or removing a selection does not delete the library file."}
       </p>
-      <label style={{ fontSize: 13 }}>
-        Upload {kind}
+      <label
+        className="ma-upload"
+        data-disabled={disabled || busy || !canUpload}
+      >
+        <MediaIcon name="plus" size={18} />
+        <span>
+          <strong>Upload {kind === "any" ? "a file" : kind}</strong>
+          <br />
+          Choose a new file from your device
+        </span>
         <input
           type="file"
           aria-label={`Upload ${label}`}
-          style={{
-            display: "block",
-            width: "100%",
-            maxWidth: "100%",
-            minWidth: 0,
-            boxSizing: "border-box",
-          }}
           disabled={disabled || busy || !canUpload}
           accept={
             kind === "image"
@@ -192,13 +246,25 @@ export default function MediaAttachment({
           onChange={(e) => void send(e.target.files?.[0])}
         />
       </label>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="ma-actions">
+        {value && canRead && item && (
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={busy || loading}
+            onClick={() => setRefresh((n) => n + 1)}
+          >
+            <MediaIcon name="refresh" size={15} />
+            Refresh file details
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-sm"
           disabled={disabled || busy || !canRead}
           onClick={() => setOpen(true)}
         >
+          <MediaIcon name="grid" size={15} />
           Choose existing file
         </button>
         {value && (
@@ -208,10 +274,17 @@ export default function MediaAttachment({
             disabled={disabled || busy}
             onClick={() => {
               onChange(null);
-              setItem(null);
+              setMetadata({
+                value: null,
+                item: null,
+                loading: false,
+                error: "",
+              });
+              setError("");
               setProgress("");
             }}
           >
+            <MediaIcon name="minus" size={15} />
             Remove selection
           </button>
         )}
@@ -230,7 +303,7 @@ export default function MediaAttachment({
           {error}
         </p>
       )}
-      {open && (
+      {open && canRead && !disabled && !busy && (
         <Modal
           title={`Choose ${label.toLowerCase()}`}
           onClose={() => setOpen(false)}

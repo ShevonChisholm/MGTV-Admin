@@ -15,7 +15,13 @@ type Track = {
   hasUnpublishedChanges: boolean;
   cueCount: number;
 };
-export function ReviewVideo({ mediaId, text }: { mediaId: string; text: string }) {
+export function ReviewVideo({
+  mediaId,
+  text,
+}: {
+  mediaId: string;
+  text: string;
+}) {
   const node = useRef<HTMLVideoElement>(null),
     [error, setError] = useState("");
   useEffect(() => {
@@ -79,8 +85,14 @@ export function ReviewVideo({ mediaId, text }: { mediaId: string; text: string }
       <video
         ref={node}
         controls
+        preload="none"
         crossOrigin="anonymous"
-        aria-label={text ? "Private caption review" : "Private branding review"}
+        onError={() =>
+          setError(
+            "Video preview unavailable. Close and reopen the preview, or retry playback where available.",
+          )
+        }
+        aria-label={text ? "Private caption review" : "Private media review"}
         style={{
           width: "100%",
           maxHeight: 280,
