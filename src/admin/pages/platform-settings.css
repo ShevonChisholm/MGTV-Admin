@@ -1,0 +1,470 @@
+.platform-v-workspace {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 28px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  font-size: 14px;
+}
+.platform-v-workspace * {
+  box-sizing: border-box;
+}
+.platform-v-workspace h2,
+.platform-v-workspace h3,
+.platform-v-workspace p {
+  margin: 0;
+}
+.platform-v-workspace .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: normal;
+  min-height: 40px;
+}
+.platform-v-workspace :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.platform-v-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px;
+  background: linear-gradient(110deg, var(--accent-dim), var(--card) 80%);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+.platform-v-hero > div:first-child {
+  min-width: 0;
+  max-width: 680px;
+}
+.platform-v-eyebrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+}
+.platform-v-hero h2 {
+  font-size: clamp(25px, 3vw, 34px);
+  line-height: 1.3;
+  margin: 12px 0;
+}
+.platform-v-hero p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.platform-v-version {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 145px;
+  min-height: 120px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--accent);
+  padding: 18px;
+}
+.platform-v-version strong {
+  font-size: 24px;
+}
+.platform-v-version span {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.platform-v-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.platform-v-saved {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 13px;
+}
+.platform-v-saved > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+}
+.platform-v-saved > div > div {
+  min-width: 0;
+}
+.platform-v-saved small {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+.platform-v-saved strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.platform-v-nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 18px;
+}
+.platform-v-nav .btn {
+  background: transparent;
+}
+.platform-v-nav .btn[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+.platform-v-section-title {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  margin: 0 0 22px;
+}
+.platform-v-section-title h2 {
+  font-size: 17px;
+  line-height: 1.6;
+}
+.platform-v-section-title p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin-top: 4px;
+}
+.platform-v-workspace .ui-card {
+  border-radius: 16px !important;
+  margin: 0 !important;
+}
+.platform-v-workspace .ui-card > div {
+  padding: 24px !important;
+}
+.platform-v-workspace .grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.platform-v-workspace .grid-2 > div {
+  min-width: 0;
+}
+.platform-v-workspace fieldset {
+  min-width: 0;
+  max-width: 100%;
+}
+.platform-v-toggle {
+  display: flex;
+  align-items: start;
+  gap: 16px;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  position: relative;
+}
+.platform-v-toggle:first-of-type {
+  padding-top: 4px;
+}
+.platform-v-toggle > input {
+  position: absolute;
+  left: 0;
+  top: 22px;
+  width: 44px;
+  height: 26px;
+  opacity: 0;
+  cursor: pointer;
+}
+.platform-v-toggle:first-of-type > input {
+  top: 4px;
+}
+.platform-v-switch {
+  width: 44px;
+  height: 26px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+}
+.platform-v-switch:before {
+  content: "";
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+}
+.platform-v-toggle input:checked + .platform-v-switch {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.platform-v-toggle input:checked + .platform-v-switch:before {
+  background: var(--bg);
+  transform: translateX(17px);
+}
+.platform-v-toggle input:focus-visible + .platform-v-switch {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.platform-v-toggle input:disabled + .platform-v-switch {
+  opacity: 0.55;
+}
+.platform-v-toggle-copy {
+  min-width: 0;
+}
+.platform-v-toggle-copy strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.platform-v-toggle-copy small {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin-top: 5px;
+}
+.platform-v-toggle-copy > span {
+  display: inline-block;
+  margin-top: 9px;
+  font-size: 10px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-radius: 6px;
+  padding: 4px 8px;
+  line-height: 1.7;
+}
+.platform-v-diff {
+  padding: 20px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  margin-bottom: 26px;
+  min-width: 0;
+}
+.platform-v-diff-heading {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.platform-v-diff-heading svg {
+  color: var(--accent);
+  margin-top: 3px;
+}
+.platform-v-diff-heading h3 {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.platform-v-diff-heading p {
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.platform-v-diff ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.platform-v-diff li {
+  padding: 18px 0;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+.platform-v-diff li > strong {
+  font-size: 12px;
+}
+.platform-v-diff li > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 15px;
+  margin-top: 12px;
+}
+.platform-v-diff li div > span {
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.platform-v-diff small {
+  display: block;
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.platform-v-diff li svg {
+  color: var(--accent);
+}
+.platform-v-muted {
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+.platform-v-save-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+.platform-v-save-actions > span {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+.platform-v-history details {
+  padding: 18px 0;
+  border-top: 1px solid var(--border);
+}
+.platform-v-history summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  cursor: pointer;
+  font-size: 12px;
+}
+.platform-v-history time {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-left: auto;
+}
+.platform-v-history-version {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 11px;
+  min-width: 34px;
+  min-height: 30px;
+  border-radius: 8px;
+}
+.platform-v-history details > div {
+  padding: 20px 0 0;
+  min-width: 0;
+}
+.platform-v-history-reason {
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  margin-bottom: 18px !important;
+}
+.platform-v-history dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 18px;
+  background: var(--bg);
+  border-radius: 12px;
+  margin: 0;
+}
+.platform-v-workspace .platform-v-history dl > div {
+  display: block;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+}
+.platform-v-history dt {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  line-height: 1.6;
+}
+.platform-v-workspace .platform-v-history dd {
+  margin: 0;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1150px) {
+  .platform-v-saved {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 680px) {
+  .platform-v-workspace {
+    padding: 16px;
+    gap: 18px;
+  }
+  .platform-v-hero {
+    padding: 22px;
+    align-items: start;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .platform-v-version {
+    min-width: 0;
+    min-height: 0;
+    flex-direction: row;
+    gap: 12px;
+    padding: 12px 16px;
+    flex-wrap: wrap;
+  }
+  .platform-v-version strong {
+    font-size: 19px;
+  }
+  .platform-v-saved {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .platform-v-saved > div {
+    padding: 16px;
+  }
+  .platform-v-nav > .btn {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+  .platform-v-workspace .grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .platform-v-workspace .ui-card > div {
+    padding: 18px !important;
+  }
+  .platform-v-diff {
+    padding: 16px;
+  }
+  .platform-v-diff li > div {
+    gap: 10px;
+  }
+  .platform-v-history dl {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+  }
+  .platform-v-history time {
+    margin-left: 46px;
+    width: 100%;
+  }
+  .platform-v-save-actions {
+    align-items: start;
+    flex-direction: column;
+  }
+  .platform-v-toggle {
+    gap: 12px;
+  }
+  .platform-v-workspace > .ui-card {
+    max-width: 100%;
+  }
+}

@@ -6,15 +6,17 @@ import { Card, TextField, SelectField, Modal } from "../ui";
 import { PageActions } from "../components/PageHeader";
 import { Note, TIMEZONES, isEmail } from "../ui/ops";
 import StaffAuth from "./StaffAuth";
-type Values = {
-  orgName: string;
-  supportEmail: string | null;
-  defaultLanguage: string;
-  defaultTimezone: string;
-  alertReports: boolean;
-  alertCampaignReview: boolean;
-  weeklyDigest: boolean;
-};
+import MediaIcon from "../components/MediaIcon";
+import SettingsHero, {
+  SettingsSavedSummary,
+  SettingsSectionTitle,
+  SettingsDiff,
+  SettingsHistory,
+  settingsDate,
+  type SettingValues,
+} from "../components/SettingsVisual";
+import "./platform-settings.css";
+type Values = SettingValues;
 const fields = (r: any): Values => ({
   orgName: r.orgName,
   supportEmail: r.supportEmail,
@@ -36,38 +38,26 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label
-      style={{
-        display: "flex",
-        gap: 12,
-        alignItems: "flex-start",
-        padding: "10px 0",
-      }}
-    >
+    <label className="platform-v-toggle">
       <input
         type="checkbox"
+        role="switch"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        style={{ marginTop: 3 }}
       />
-      <span>
-        <span style={{ display: "block", fontSize: 14, fontWeight: 600 }}>
-          {label}
-        </span>
-        <span
-          style={{
-            display: "block",
-            fontSize: 12.5,
-            color: "var(--text-secondary)",
-          }}
-        >
-          {hint}
+      <span className="platform-v-switch" aria-hidden="true" />
+      <span className="platform-v-toggle-copy">
+        <strong>{label}</strong>
+        <small>{hint}</small>
+        <span>
+          {checked ? "Preference on" : "Preference off"} / delivery pending
         </span>
       </span>
     </label>
   );
 }
 export default function ConnectedSettings() {
+  const [section, setSection] = useState("organization");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [session, setSession] = useState<any>(null),
     [record, setRecord] = useState<any>(null),
@@ -103,8 +93,10 @@ export default function ConnectedSettings() {
         throw Error(
           "You need the explicit settings.read permission to view Platform Settings.",
         );
-      const r = await api("/admin/settings");
-      const h = await api("/admin/settings/history");
+      const [r, h] = await Promise.all([
+        api("/admin/settings"),
+        api("/admin/settings/history"),
+      ]);
       setRecord(r);
       setDraft(fields(r));
       setHistory(h.items);
@@ -142,6 +134,7 @@ export default function ConnectedSettings() {
         "Enter a valid support email address or leave it blank.";
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
+      setSection("organization");
       setError("Review the highlighted fields before saving.");
       return;
     }
@@ -211,7 +204,7 @@ export default function ConnectedSettings() {
   }
   if (!loaded)
     return (
-      <LoadingState label={<>Loading Platform Settings…</>} variant="form" />
+      <LoadingState label={<>Loading Platform Settings...</>} variant="form" />
     );
   if (unauth) return <StaffAuth onAuthenticated={load} />;
   if (!record || !draft)
@@ -224,7 +217,31 @@ export default function ConnectedSettings() {
       </div>
     );
   return (
-    <div className="page-pad" aria-busy={busy}>
+    <div className="platform-v-workspace av-workspace" aria-busy={busy}>
+      <SettingsHero record={record} />
+      <SettingsSavedSummary record={record} />
+      <nav className="platform-v-nav" aria-label="Settings sections">
+        {[
+          {
+            id: "organization",
+            label: "Organization & defaults",
+            icon: "brand",
+          },
+          { id: "alerts", label: "Staff preferences", icon: "bell" },
+          { id: "review", label: "Review & history", icon: "review" },
+        ].map((item) => (
+          <button
+            type="button"
+            className="btn"
+            key={item.id}
+            aria-pressed={section === item.id}
+            onClick={() => setSection(item.id)}
+          >
+            <MediaIcon name={item.icon} size={17} />
+            {item.label}
+          </button>
+        ))}
+      </nav>
       <PageActions>
         <span
           role="status"
@@ -236,7 +253,7 @@ export default function ConnectedSettings() {
         >
           {dirty
             ? "Unsaved changes"
-            : `Saved · v${record.version} · ${new Date(record.updatedAt).toLocaleString()}`}
+            : `Saved / v${record.version} / ${settingsDate(record.updatedAt)}`}
         </span>
         <button
           className="btn"
@@ -253,12 +270,11 @@ export default function ConnectedSettings() {
         </button>
         <button
           className="btn btn-primary"
-          disabled={
-            busy || !allowed || !dirty || reason.trim().length < 5 || conflict
-          }
-          onClick={() => void save()}
+          disabled={busy || !dirty}
+          onClick={() => setSection("review")}
         >
-          Save settings
+          <MediaIcon name="review" size={16} />
+          Review changes
         </button>
       </PageActions>
       {error && (
@@ -293,137 +309,138 @@ export default function ConnectedSettings() {
         disabled={!allowed || busy}
         style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
       >
-        <Card title="Organization">
-          <div className="grid-2">
-            <TextField
-              label="Organization name"
-              error={fieldErrors.orgName}
-              required
-              maxLength={160}
-              value={draft.orgName}
-              onChange={(e) => set("orgName", e.target.value)}
-              hint="Public organization name. The MGTV logo and legal policies are managed separately."
+        {section === "organization" && (
+          <Card>
+            <SettingsSectionTitle
+              icon="brand"
+              title="Organization & defaults"
+              note="Changes stay in your draft until reviewed and saved."
             />
-            <TextField
-              label="Support email"
-              error={fieldErrors.supportEmail}
-              type="email"
-              maxLength={254}
-              value={draft.supportEmail ?? ""}
-              onChange={(e) => set("supportEmail", e.target.value || null)}
-              hint="Public customer support address. Leave blank until confirmed; no email is sent by this setting."
+            <div className="grid-2">
+              <TextField
+                label="Organization name"
+                error={fieldErrors.orgName}
+                required
+                maxLength={160}
+                value={draft.orgName}
+                onChange={(e) => set("orgName", e.target.value)}
+                hint="Public organization name. The MGTV logo and legal policies are managed separately."
+              />
+              <TextField
+                label="Support email"
+                error={fieldErrors.supportEmail}
+                type="email"
+                maxLength={254}
+                value={draft.supportEmail ?? ""}
+                onChange={(e) => set("supportEmail", e.target.value || null)}
+                hint="Public customer support address. Leave blank until confirmed; no email is sent by this setting."
+              />
+              <SelectField
+                label="Default language"
+                required
+                value={draft.defaultLanguage}
+                onChange={(e) => set("defaultLanguage", e.target.value)}
+                options={record.languages}
+                hint="Stored locale preference. This does not translate the interface or change existing profiles."
+              />
+              <SelectField
+                label="Default timezone"
+                required
+                value={draft.defaultTimezone}
+                onChange={(e) => set("defaultTimezone", e.target.value)}
+                options={[...new Set([...TIMEZONES, draft.defaultTimezone])]}
+                hint="Default for new event drafts without an explicit timezone. Existing events and Analytics remain unchanged."
+              />
+            </div>
+          </Card>
+        )}
+        {section === "alerts" && (
+          <Card>
+            <SettingsSectionTitle
+              icon="bell"
+              title="Staff alert preferences"
+              note="Store preferences now. Delivery and scheduled digests remain deferred."
             />
-            <SelectField
-              label="Default language"
-              required
-              value={draft.defaultLanguage}
-              onChange={(e) => set("defaultLanguage", e.target.value)}
-              options={record.languages}
-              hint="Stored locale preference. This does not translate the interface or change existing profiles."
+            <Toggle
+              label="New moderation reports"
+              hint="Save the preference for future staff alerts when a report opens."
+              checked={draft.alertReports}
+              onChange={(v) => set("alertReports", v)}
             />
-            <SelectField
-              label="Default timezone"
-              required
-              value={draft.defaultTimezone}
-              onChange={(e) => set("defaultTimezone", e.target.value)}
-              options={[...new Set([...TIMEZONES, draft.defaultTimezone])]}
-              hint="Default for new event drafts without an explicit timezone. Existing events and Analytics remain unchanged."
+            <Toggle
+              label="Campaigns waiting for review"
+              hint="Save the preference for future staff alerts when a campaign is submitted."
+              checked={draft.alertCampaignReview}
+              onChange={(v) => set("alertCampaignReview", v)}
             />
-          </div>
-        </Card>
-        <Card title="Alerts for associates">
-          <Toggle
-            label="New moderation reports"
-            hint="Save the preference for future staff alerts when a report opens."
-            checked={draft.alertReports}
-            onChange={(v) => set("alertReports", v)}
-          />
-          <Toggle
-            label="Campaigns waiting for review"
-            hint="Save the preference for future staff alerts when a campaign is submitted."
-            checked={draft.alertCampaignReview}
-            onChange={(v) => set("alertCampaignReview", v)}
-          />
-          <Toggle
-            label="Weekly activity digest"
-            hint="Save the preference for a future content, events and reports digest."
-            checked={draft.weeklyDigest}
-            onChange={(v) => set("weeklyDigest", v)}
-          />
-          <p
-            style={{
-              fontSize: 12,
-              color: "var(--text-muted)",
-              margin: "6px 0 0",
-            }}
-          >
-            Preferences are stored in the database. Staff alert delivery and
-            scheduled digests remain deferred; enabling a preference does not
-            send anything.
-          </p>
-        </Card>
-        <Card title="Change record">
-          <TextField
-            label="Reason for change"
-            required
-            value={reason}
-            minLength={5}
-            maxLength={1000}
-            onChange={(e) => setReason(e.target.value)}
-            hint="At least five characters. Saved changes and their reasons remain in the audit history."
-          />
-        </Card>
-      </fieldset>
-      <Card title="Settings history">
-        <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          Newest versions first. History is immutable; restoring an earlier
-          configuration requires saving a new version.
-        </p>
-        {history.map((h) => (
-          <details
-            key={h.version}
-            style={{
-              padding: "12px 0",
-              borderTop: "1px solid var(--border)",
-              overflowWrap: "anywhere",
-            }}
-          >
-            <summary style={{ cursor: "pointer", fontSize: 13 }}>
-              v{h.version} · {h.actor} ·{" "}
-              {new Date(h.createdAt).toLocaleString()}
-            </summary>
-            <p>{h.reason}</p>
-            <dl
+            <Toggle
+              label="Weekly activity digest"
+              hint="Save the preference for a future content, events and reports digest."
+              checked={draft.weeklyDigest}
+              onChange={(v) => set("weeklyDigest", v)}
+            />
+            <p
               style={{
                 fontSize: 12,
-                display: "grid",
-                gridTemplateColumns: "minmax(100px,1fr) minmax(0,2fr)",
-                gap: 8,
+                color: "var(--text-muted)",
+                margin: "6px 0 0",
               }}
             >
-              {Object.entries(fields(h.body)).map(([k, v]) => (
-                <div key={k} style={{ display: "contents" }}>
-                  <dt>{k.replace(/([A-Z])/g, " $1")}</dt>
-                  <dd style={{ margin: 0, overflowWrap: "anywhere" }}>
-                    {v === null
-                      ? "Not configured"
-                      : typeof v === "boolean"
-                        ? v
-                          ? "Enabled"
-                          : "Disabled"
-                        : String(v)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </details>
-        ))}
-        {next && (
-          <button className="btn" disabled={busy} onClick={() => void more()}>
-            Load earlier changes
-          </button>
+              Preferences are stored in the database. Staff alert delivery and
+              scheduled digests remain deferred; enabling a preference does not
+              send anything.
+            </p>
+          </Card>
         )}
-      </Card>
+        {section === "review" && (
+          <Card>
+            <SettingsDiff before={fields(record)} after={draft} />
+            <SettingsSectionTitle
+              icon="edit"
+              title="Record your decision"
+              note="A saved update creates a new audited configuration version."
+            />
+            <TextField
+              label="Reason for change"
+              required
+              value={reason}
+              minLength={5}
+              maxLength={1000}
+              onChange={(e) => setReason(e.target.value)}
+              hint="At least five characters. Saved changes and their reasons remain in the audit history."
+            />
+            <div className="platform-v-save-actions">
+              <button
+                className="btn btn-primary"
+                disabled={
+                  busy ||
+                  !allowed ||
+                  !dirty ||
+                  reason.trim().length < 5 ||
+                  conflict
+                }
+                onClick={() => void save()}
+              >
+                <MediaIcon name="check" size={16} />
+                Save settings
+              </button>
+              <span>
+                Save applies all pending fields, across every settings section.
+              </span>
+            </div>
+          </Card>
+        )}
+      </fieldset>
+      {section === "review" && (
+        <Card>
+          <SettingsHistory items={history} />
+          {next && (
+            <button className="btn" disabled={busy} onClick={() => void more()}>
+              Load earlier changes
+            </button>
+          )}
+        </Card>
+      )}
       {reload && (
         <Modal title="Reload latest settings?" onClose={() => setReload(false)}>
           <p>
