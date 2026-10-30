@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-30",
+  "environment": "disposable preview",
+  "url": "https://mgtv-admin.vercel.app",
+  "commit": "9154abae557ea131c99169e306e079d2e87f006b",
+  "deploymentId": "dpl_AD7u1fYwfRQS7pNzeekpqs763tEW",
+  "state": "READY",
+  "uniqueUrl": "https://mgtv-admin-m251r2ywp-shevon-chisholms-projects-604185d2.vercel.app",
+  "rollbackDeploymentId": "dpl_HjvSBQXuBVfeGMDs7fr3CSX1eYo7",
+  "verification": {
+    "session": "normal preview administrator; no auth bypass",
+    "responsiveChecks": 8,
+    "widths": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "pageOverflow": false,
+    "capturedBrowserWarningsOrErrors": [],
+    "workflows": [
+      "permitted workspace search",
+      "sidebar collapse clears search",
+      "mobile drawer search",
+      "Escape closes drawer and returns focus",
+      "Settings and Careers loaded",
+      "bare Music Library opens Artists",
+      "Movies content workspace loaded",
+      "Communications subscribers and newsletters loaded"
+    ],
+    "limitations": [
+      "Restricted staff combinations are covered by isolated component tests, not a real restricted-account browser session."
+    ]
+  },
+  "apiDeployment": false,
+  "dataChanges": false,
+  "permissionChanges": false,
+  "pending": [
+    "DRM",
+    "production email"
+  ],
+  "evidence": [
+    "navigation-hosted-desktop.png",
+    "navigation-hosted-mobile.png"
+  ]
+}

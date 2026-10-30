@@ -24,3 +24,9 @@ Local review: 30 October 2026. Deployment pending.
 Evidence: navigation-settings-mobile.png, navigation-careers-mobile.png and navigation-workspace-search.png in C:/Users/chish/.codex/visualizations/2026/10/22/01a16480-a614-7543-80c2-fac991b681e9/.
 
 DRM and production email remain pending. Stop before another area.
+
+## Hosted acceptance
+
+Deployed commit 9154abae557ea131c99169e306e079d2e87f006b as dpl_AD7u1fYwfRQS7pNzeekpqs763tEW; READY at https://mgtv-admin.vercel.app on 30 October 2026. This supersedes the local-only checkpoint.
+
+Normal preview administrator session verified workspace search, collapse/reset, mobile drawer search and Escape focus return. Settings and Careers passed all eight page-width checks at 320/390/768/1440px; mobile toolbar text remained intact. Bare Music Library, Movies and Communications subscriber/newsletter tables loaded. No captured browser warnings/errors. Viewport override reset. No records saved, permission changes, API deployment or email delivery. Restricted-account combinations remain component-tested only. Deployment metadata and rollback are in navigation-mobile-preview-release.json. DRM and production email pending; no next area started.
